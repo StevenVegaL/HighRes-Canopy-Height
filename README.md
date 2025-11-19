@@ -1,5 +1,5 @@
 # 🌳 High-Resolution Canopy Height  
-### Proyecto Final — Analítica e Inteligencia Artificial • UAO
+
 
 <p align="center">
   <img src="assets/banner_chm.png" width="90%" />
