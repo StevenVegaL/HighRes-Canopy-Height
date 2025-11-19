@@ -1,0 +1,29 @@
+# --- Core app ---
+streamlit==1.39.0
+numpy==1.26.4
+pandas==2.2.2
+
+# --- Deep learning ---
+torch==2.2.2
+torchvision==0.17.2
+
+# --- Imágenes y visualización ---
+Pillow==10.3.0
+matplotlib==3.8.4
+
+# --- Modelos / backbone (ViT, DPT, etc.) ---
+timm==0.9.16
+einops==0.8.0
+
+# --- Procesamiento científico / utilidades ---
+scipy==1.13.1
+scikit-image==0.23.2
+tqdm==4.66.4
+pyyaml==6.0.1
+
+# --- Geodatos (por si en neon_data se leen GeoTIFF) ---
+rasterio==1.3.10
+pytorch-lightning==2.2.4
+lightning-utilities>=0.11.0
+
+

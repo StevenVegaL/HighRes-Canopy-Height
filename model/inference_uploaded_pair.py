@@ -1,84 +1,52 @@
-# model/inference_neon_tile.py
+# model/inference_uploaded_pair.py
 """
-Inferencia sobre un tile del dataset NEON para demostración en Streamlit.
+Inferencia sobre un par (imagen RGB subida + CHM real opcional).
 
-Este módulo envuelve:
-- Carga de modelos (CHM + RNet) desde ssl_model.
-- Construcción del NeonDataset con la misma lógica que en el paper.
-- Cálculo de métricas equivalentes al evaluate() original, pero sobre un solo tile.
+Este módulo está pensado para el "Modo de imagen subida" de la demo en Streamlit.
+Hace SOLO la parte de modelo:
 
-Se usa en el "Modo NEON" de la página de demostración.
+- Carga el modelo de altura de dosel (CHM) desde ssl_model.load_chm_model.
+- Define la normalización global de imagen (igual que en el paper).
+- Recibe una imagen RGB en memoria (np.ndarray) y, opcionalmente, un CHM real.
+- Devuelve el CHM predicho y, si hay CHM real, las métricas:
+  MAE, RMSE, R² pixel, R² en bloques y Bias.
+
+Las validaciones fuertes del input (tamaño 256×256, 3 canales, contraste, etc.)
+se recomienda hacerlas en la capa de Streamlit antes de llamar a estas funciones.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import numpy as np
 import torch
 import torchvision.transforms as T
 
-from .ssl_model import load_chm_model, load_rnet_normalizer
-from .neon_data import build_neon_dataset, get_neon_sample
+from .ssl_model import load_chm_model
 from .metrics import compute_all_metrics
 
 
-def setup_neon_inference(
+def setup_uploaded_inference(
     checkpoint_name: str = "compressed_SSLhuge_aerial.pth",
-    normtype: int = 2,
-    trained_rgb: bool = False,
-    src_img: str = "neon",
 ) -> Dict[str, Any]:
     """
-    Configura todos los componentes necesarios para hacer inferencia sobre NEON:
-
-    - Carga el modelo de normalización RNet (si normtype requiere RNet).
-    - Construye el NeonDataset con la configuración deseada.
-    - Carga el modelo de altura de dosel (SSLModule) con el checkpoint dado.
-    - Define la normalización global de imagen usada en el paper.
-
-    Esta función está pensada para llamarse una sola vez
-    (por ejemplo, decorada con st.cache_resource en Streamlit).
+    Carga el modelo de CHM y la normalización global usada en el paper.
 
     Parameters
     ----------
     checkpoint_name:
         Nombre del checkpoint de CHM dentro de saved_checkpoints/.
         Por defecto 'compressed_SSLhuge_aerial.pth'.
-    normtype:
-        Tipo de normalización de imágenes aéreas, igual que en el paper:
-        - 0: no_norm=True (sin normalización de dominio con RNet/Maxar).
-        - 1: normalización "vieja" usando imagen Maxar.
-        - 2: normalización automática usando RNet (default del paper).
-    trained_rgb:
-        True si se usara un modelo finetuneado en RGB aéreo (no es el caso aquí).
-    src_img:
-        Tipo de imagen fuente en el CSV. En este proyecto usamos 'neon'.
 
     Returns
     -------
-    components: dict con claves:
+    components: dict con:
         - "model": modelo de CHM (SSLModule) en eval().
-        - "device": dispositivo donde está el modelo ('cpu' o 'cuda:0').
-        - "dataset": instancia de NeonDataset.
-        - "norm": transform Normalize para la entrada del modelo.
+        - "device": dispositivo ('cpu' o 'cuda:0').
+        - "norm": transform torchvision.transforms.Normalize para la entrada.
     """
-    # 1. Cargar RNet solo si normtype lo requiere (normtype=2 en el paper)
-    if normtype == 2:
-        model_norm = load_rnet_normalizer()
-    else:
-        model_norm = None
-
-    # 2. Construir el dataset NEON con esa configuración (equivalente a evaluate())
-    dataset = build_neon_dataset(
-        model_norm=model_norm,
-        normtype=normtype,
-        trained_rgb=trained_rgb,
-        src_img=src_img,
-    )
-
-    # 3. Cargar el modelo de altura de dosel (CHM) desde el checkpoint indicado
     model, device = load_chm_model(checkpoint_name=checkpoint_name)
 
-    # 4. Normalización global por canal, igual que en inference.py
+    # Normalización global por canal (igual que inference.py del repo)
     norm = T.Normalize(
         mean=(0.420, 0.411, 0.296),
         std=(0.213, 0.156, 0.143),
@@ -87,79 +55,100 @@ def setup_neon_inference(
     components = {
         "model": model,
         "device": device,
-        "dataset": dataset,
         "norm": norm,
     }
     return components
 
 
-def run_neon_tile_inference(
+def run_uploaded_inference(
     components: Dict[str, Any],
-    index: int,
+    rgb: np.ndarray,
+    chm_gt: Optional[np.ndarray] = None,
 ) -> Dict[str, Any]:
     """
-    Ejecuta inferencia sobre un tile del NeonDataset dado por 'index'.
-
-    Usa los componentes devueltos por setup_neon_inference:
-    - modelo de CHM
-    - dispositivo
-    - dataset
-    - normalización global
-
-    Calcula las métricas equivalentes al evaluate() original:
-    - MAE
-    - RMSE
-    - R2 pixel a pixel
-    - R2_block (sobre bloques downsampleados)
-    - Bias
+    Ejecuta inferencia sobre una imagen RGB subida por el usuario.
 
     Parameters
     ----------
     components:
-        Diccionario devuelto por setup_neon_inference().
-    index:
-        Índice entero del tile a evaluar dentro del NeonDataset.
+        Diccionario devuelto por setup_uploaded_inference().
+    rgb:
+        Imagen RGB como np.ndarray de forma [H, W, 3].
+        Puede venir en uint8 (0–255) o float32 (0–1).
+    chm_gt:
+        CHM real opcional como np.ndarray de forma [H, W] o [H, W, 1].
+        Si se proporciona y las dimensiones coinciden con la predicción,
+        se calculan las métricas de error.
 
     Returns
     -------
-    result: dict con:
-        - "img_rgb": np.ndarray [H,W,3] con la imagen aérea original.
-        - "chm_gt": np.ndarray [H,W] con el CHM real.
-        - "chm_pred": np.ndarray [H,W] con el CHM predicho.
-        - "metrics": dict con claves "mae", "rmse", "r2", "r2_block", "bias".
+    result: dict con claves:
+        - "img_rgb": np.ndarray [H, W, 3] float32 en [0,1].
+        - "chm_pred": np.ndarray [H, W] con el CHM predicho.
+        - "chm_gt": np.ndarray [H, W] con el CHM real (o None).
+        - "metrics": dict con "mae", "rmse", "r2", "r2_block", "bias" (o None).
     """
     model = components["model"]
     device = components["device"]
-    dataset = components["dataset"]
     norm = components["norm"]
 
-    # 1. Obtener el sample del dataset (imagen original, normalizada y CHM real)
-    img_no_norm, img_norm, chm = get_neon_sample(dataset, index)
+    # -------------------------
+    # Validaciones básicas RGB
+    # -------------------------
+    if rgb.ndim != 3 or rgb.shape[2] != 3:
+        raise ValueError(
+            f"La imagen RGB debe tener forma [H, W, 3]. "
+            f"Forma recibida: {rgb.shape}"
+        )
 
-    # 2. Preparar batch de tamaño 1 y aplicar normalización global
-    x = img_norm.unsqueeze(0)  # [1,3,H,W]
-    x = norm(x)
-    x = x.to(device)
+    # Convertir a float32 en [0,1]
+    if rgb.dtype != np.float32:
+        rgb_f = rgb.astype("float32")
+        if rgb_f.max() > 1.0 + 1e-3:
+            rgb_f /= 255.0
+    else:
+        rgb_f = rgb.copy()
 
-    # 3. Ejecutar inferencia (igual que en evaluate, pero sobre un solo batch)
+    # -------------------------
+    # Preparar tensor para el modelo
+    # -------------------------
+    # [H,W,3] -> [1,3,H,W]
+    x = torch.from_numpy(rgb_f).permute(2, 0, 1).unsqueeze(0)
+    x = norm(x).to(device)
+
     model.eval()
     with torch.no_grad():
-        pred = model(x)          # [1,1,H,W]
-        pred = pred.cpu().relu() # asegurar no-negatividad
-        pred_map = pred[0, 0].numpy()  # [H,W]
+        pred = model(x)              # [1,1,H,W]
+        pred = pred.cpu().relu()     # asegurar no-negatividad
+        chm_pred = pred[0, 0].numpy()  # [H,W]
 
-    chm_map = chm[0].numpy()  # [H,W]
+    chm_gt_out: Optional[np.ndarray] = None
+    metrics: Optional[Dict[str, float]] = None
 
-    # 4. Calcular métricas usando el helper del módulo metrics
-    metrics = compute_all_metrics(pred_map, chm_map)
+    # -------------------------
+    # Si hay CHM real, alinear y calcular métricas
+    # -------------------------
+    if chm_gt is not None:
+        chm_arr = np.asarray(chm_gt, dtype="float32")
 
-    # 5. Convertir la imagen RGB a formato [H,W,3] para visualización en Streamlit
-    img_rgb = np.moveaxis(img_no_norm.numpy(), 0, 2)  # [H,W,3]
+        # Si viene con canal extra [H,W,1], lo exprimimos
+        if chm_arr.ndim == 3 and chm_arr.shape[2] == 1:
+            chm_arr = chm_arr[..., 0]
 
-    result = {
-        "img_rgb": img_rgb,
-        "chm_gt": chm_map,
-        "chm_pred": pred_map,
+        if chm_arr.shape != chm_pred.shape:
+            raise ValueError(
+                f"El CHM real tiene forma {chm_arr.shape}, "
+                f"pero la predicción tiene forma {chm_pred.shape}. "
+                "Deben coincidir exactamente."
+            )
+
+        chm_gt_out = chm_arr
+        metrics = compute_all_metrics(chm_pred, chm_gt_out)
+
+    result: Dict[str, Any] = {
+        "img_rgb": rgb_f,
+        "chm_pred": chm_pred,
+        "chm_gt": chm_gt_out,
         "metrics": metrics,
     }
     return result

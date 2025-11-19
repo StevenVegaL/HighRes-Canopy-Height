@@ -968,128 +968,203 @@ debe tener el <strong>mismo tamaño</strong> que la imagen RGB.
   <p style="font-size:13px;opacity:0.85;">
   • La imagen debe ser <strong>RGB (3 canales)</strong>.<br>
   • El CHM (si se sube) debe tener exactamente el mismo tamaño que la imagen.<br>
-  • Si las dimensiones o canales no coinciden, la app te mostrará un mensaje de error.
+  • Imágenes muy grandes se redimensionan automáticamente para evitar errores de memoria.
   </p>
 </div>
 """,
             unsafe_allow_html=True,
         )
 
-    if run_btn and rgb_file is not None:
-        try:
-            model = components_up["model"]
-            device = components_up["device"]
-            norm = components_up["norm"]
-
-            # --- Preparar imagen RGB ---
-            rgb_img = Image.open(rgb_file).convert("RGB")
-            img_np = np.array(rgb_img).astype("float32") / 255.0  # [H,W,3] en [0,1]
-            img_rgb_up = img_np
-
-            img_t = torch.from_numpy(img_np).permute(2, 0, 1)  # [3,H,W]
-            x = img_t.unsqueeze(0)  # [1,3,H,W]
-            x = norm(x).to(device)
-
-            with torch.no_grad():
-                pred = model(x)
-                pred = pred.cpu().relu()[0, 0].numpy()  # [H,W]
-            chm_pred_up = pred
-
-            chm_gt_up = None
-            metrics_up = None
-
-            # --- Si hay CHM real, cargar y calcular métricas ---
-            if chm_file is not None:
-                chm_img = Image.open(chm_file)
-                chm_arr = np.array(chm_img).astype("float32")
-
-                if chm_arr.ndim == 3:
-                    chm_arr = chm_arr[..., 0]
-
-                if chm_arr.shape != chm_pred_up.shape:
-                    raise ValueError(
-                        f"Dimensiones distintas entre predicción {chm_pred_up.shape} "
-                        f"y CHM real {chm_arr.shape}. Deben coincidir."
-                    )
-
-                chm_gt_up = chm_arr
-                metrics_up = compute_all_metrics(chm_pred_up, chm_gt_up)
-
-            # --- Visualización ---
-            st.markdown('<div class="section-title">Resultado de la inferencia</div>', unsafe_allow_html=True)
-            c1, c2, c3 = st.columns(3)
-
-            with c1:
-                st.markdown('<div class="result-card"><div class="result-title">Imagen RGB</div>', unsafe_allow_html=True)
-                st.image(img_rgb_up, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            if chm_gt_up is not None:
-                vmin_up = float(min(chm_gt_up.min(), chm_pred_up.min()))
-                vmax_up = float(max(chm_gt_up.max(), chm_pred_up.max()))
-            else:
-                vmin_up = float(chm_pred_up.min())
-                vmax_up = float(chm_pred_up.max())
-
-            eps = 1e-6
-
-            chm_pred_vis_up = (chm_pred_up - vmin_up) / (vmax_up - vmin_up + eps)
-            chm_pred_vis_up = np.clip(chm_pred_vis_up, 0.0, 1.0)
-            chm_pred_rgb_up = chm_to_rgb(chm_pred_vis_up, cmap_name="viridis")
-
-            with c2:
-                st.markdown('<div class="result-card"><div class="result-title">CHM predicho (m)</div>', unsafe_allow_html=True)
-                st.image(chm_pred_rgb_up, use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            with c3:
-                if chm_gt_up is not None:
-                    chm_gt_vis_up = (chm_gt_up - vmin_up) / (vmax_up - vmin_up + eps)
-                    chm_gt_vis_up = np.clip(chm_gt_vis_up, 0.0, 1.0)
-                    chm_gt_rgb_up = chm_to_rgb(chm_gt_vis_up, cmap_name="viridis")
-                    st.markdown('<div class="result-card"><div class="result-title">CHM real (m)</div>', unsafe_allow_html=True)
-                    st.image(chm_gt_rgb_up, use_container_width=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div class="result-card"><div class="result-title">CHM real (no disponible)</div>', unsafe_allow_html=True)
-                    st.info(
-                        "No se cargó un CHM real, por lo que solo se muestra la predicción.",
-                        icon="ℹ️",
-                    )
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-            if metrics_up is not None:
-                st.markdown('<div class="section-title">Métricas (comparación con CHM real)</div>', unsafe_allow_html=True)
-                import pandas as pd
-
-                df_metrics_up = pd.DataFrame(
-                    {
-                        "Métrica": ["MAE", "RMSE", "R² (pixel)", "R² (bloques)", "Bias"],
-                        "Valor": [
-                            f"{metrics_up['mae']:.3f} m",
-                            f"{metrics_up['rmse']:.3f} m",
-                            f"{metrics_up['r2']:.3f}",
-                            f"{metrics_up['r2_block']:.3f}",
-                            f"{metrics_up['bias']:.3f} m",
-                        ],
-                    }
-                )
-                st.table(df_metrics_up)
-            else:
-                st.info(
-                    "No se calcularon métricas porque no se proporcionó un CHM real.",
-                    icon="ℹ️",
-                )
-
-        except Exception as e:
-            st.error(
-                f"Ocurrió un error al procesar los archivos: {e}",
+    # --- LÓGICA DEL BOTÓN ---
+    if run_btn:
+        if rgb_file is None:
+            st.warning(
+                "Por favor sube al menos una imagen RGB antes de ejecutar la inferencia.",
+                icon="⚠️",
             )
-    elif run_btn and rgb_file is None:
-        st.warning(
-            "Por favor sube al menos una imagen RGB antes de ejecutar la inferencia.",
-            icon="⚠️",
-        )
+        else:
+            import traceback
+            with st.spinner("Ejecutando inferencia sobre la imagen subida..."):
+                try:
+                    model = components_up["model"]
+                    device = components_up["device"]
+                    norm = components_up["norm"]
+
+                    # --- Preparar imagen RGB ---
+                    rgb_img = Image.open(rgb_file).convert("RGB")
+                    img_np = np.array(rgb_img).astype("float32") / 255.0  # [H,W,3] en [0,1]
+
+                    # === Restricciones de calidad y tamaño ===
+                    if img_np.ndim != 3:
+                        raise ValueError("La imagen debe tener 3 canales (formato RGB).")
+
+                    H0, W0, C = img_np.shape
+                    if C != 3:
+                        raise ValueError(f"La imagen debe tener 3 canales RGB, se encontró {C}.")
+
+                    # Muy pequeña -> rechazamos
+                    if H0 < 128 or W0 < 128:
+                        raise ValueError(
+                            f"La imagen es muy pequeña ({H0}×{W0} píxeles). "
+                            "Usa recortes de al menos 256×256 píxeles similares a los tiles NEON."
+                        )
+
+                    # Muy grande -> redimensionamos para evitar OOM
+                    MAX_SIDE = 512  # máximo 512 px por lado
+                    resized_msg = None
+                    if max(H0, W0) > MAX_SIDE:
+                        scale = MAX_SIDE / max(H0, W0)
+                        newW = int(W0 * scale)
+                        newH = int(H0 * scale)
+
+                        rgb_img_resized = rgb_img.resize((newW, newH), Image.BILINEAR)
+                        img_np = np.array(rgb_img_resized).astype("float32") / 255.0
+                        resized_msg = (
+                            f"La imagen original era de {H0}×{W0} píxeles "
+                            f"y se redimensionó automáticamente a {newH}×{newW} "
+                            "para poder ejecutar el modelo sin quedarse sin memoria."
+                        )
+
+                    # Guardamos esta versión (posible resize) para mostrar
+                    img_rgb_up = img_np
+                    H, W, _ = img_rgb_up.shape  # tamaño final usado por el modelo
+
+                    # --- Tensor para el modelo ---
+                    img_t = torch.from_numpy(img_rgb_up).permute(2, 0, 1)  # [3,H,W]
+                    x = img_t.unsqueeze(0)  # [1,3,H,W]
+                    x = norm(x).to(device)
+
+                    model.eval()
+                    with torch.no_grad():
+                        pred = model(x)
+                        pred = pred.cpu().relu()[0, 0].numpy()  # [H,W]
+                    chm_pred_up = pred
+
+                    chm_gt_up = None
+                    metrics_up = None
+
+                    # --- Si hay CHM real, cargar y calcular métricas ---
+                    # --- Si hay CHM real, cargar y (si hace falta) redimensionar y calcular métricas ---
+                    if chm_file is not None:
+                        # Abrimos el CHM original
+                        chm_img = Image.open(chm_file)
+                        chm_arr = np.array(chm_img).astype("float32")
+
+                        # Si viene con varios canales, nos quedamos con uno
+                        if chm_arr.ndim == 3:
+                            chm_arr = chm_arr[..., 0]
+
+                        # Tamaño de la predicción del modelo
+                        H_pred, W_pred = chm_pred_up.shape
+
+                        # Si el tamaño del CHM NO coincide, lo redimensionamos al tamaño de la predicción
+                        if chm_arr.shape != (H_pred, W_pred):
+                            # Redimensionamos usando PIL para que coincida con la grilla del modelo
+                            chm_resized = chm_img.resize((W_pred, H_pred), resample=Image.BILINEAR)
+                            chm_arr = np.array(chm_resized).astype("float32")
+
+                            if chm_arr.ndim == 3:
+                                chm_arr = chm_arr[..., 0]
+
+                            st.info(
+                                f"El CHM real original tenía tamaño {chm_img.size[1]}×{chm_img.size[0]} "
+                                f"y se redimensionó a {H_pred}×{W_pred} para poder compararlo con la predicción.",
+                                icon="ℹ️",
+                            )
+
+                        # Ahora sí: ya deberían coincidir las dimensiones
+                        if chm_arr.shape != (H_pred, W_pred):
+                            # Último chequeo por si acaso algo raro
+                            st.warning(
+                                f"Aún hay diferencias de tamaño entre la predicción {chm_pred_up.shape} "
+                                f"y el CHM real {chm_arr.shape}. No se calcularán métricas.",
+                                icon="⚠️",
+                            )
+                            chm_gt_up = None
+                            metrics_up = None
+                        else:
+                            chm_gt_up = chm_arr
+                            metrics_up = compute_all_metrics(chm_pred_up, chm_gt_up)
+
+                    # --- Visualización ---
+                    st.markdown('<div class="section-title">Resultado de la inferencia</div>', unsafe_allow_html=True)
+                    c1, c2, c3 = st.columns(3)
+
+                    with c1:
+                        st.markdown('<div class="result-card"><div class="result-title">Imagen RGB usada por el modelo</div>', unsafe_allow_html=True)
+                        st.image(img_rgb_up, use_container_width=True)
+                        if resized_msg is not None:
+                            st.caption(resized_msg)
+                        else:
+                            st.caption(f"Tamaño de inferencia: {H}×{W} píxeles.")
+                        st.markdown('</div>', unsafe_allow_html=True)
+
+                    # Rango de alturas para normalizar colormap
+                    if chm_gt_up is not None:
+                        vmin_up = float(min(chm_gt_up.min(), chm_pred_up.min()))
+                        vmax_up = float(max(chm_gt_up.max(), chm_pred_up.max()))
+                    else:
+                        vmin_up = float(chm_pred_up.min())
+                        vmax_up = float(chm_pred_up.max())
+
+                    eps = 1e-6
+
+                    chm_pred_vis_up = (chm_pred_up - vmin_up) / (vmax_up - vmin_up + eps)
+                    chm_pred_vis_up = np.clip(chm_pred_vis_up, 0.0, 1.0)
+                    chm_pred_rgb_up = chm_to_rgb(chm_pred_vis_up, cmap_name="viridis")
+
+                    with c2:
+                        st.markdown('<div class="result-card"><div class="result-title">CHM predicho (m)</div>', unsafe_allow_html=True)
+                        st.image(chm_pred_rgb_up, use_container_width=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+
+                    with c3:
+                        if chm_gt_up is not None:
+                            chm_gt_vis_up = (chm_gt_up - vmin_up) / (vmax_up - vmin_up + eps)
+                            chm_gt_vis_up = np.clip(chm_gt_vis_up, 0.0, 1.0)
+                            chm_gt_rgb_up = chm_to_rgb(chm_gt_vis_up, cmap_name="viridis")
+                            st.markdown('<div class="result-card"><div class="result-title">CHM real (m)</div>', unsafe_allow_html=True)
+                            st.image(chm_gt_rgb_up, use_container_width=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div class="result-card"><div class="result-title">CHM real (no disponible)</div>', unsafe_allow_html=True)
+                            st.info(
+                                "No se cargó un CHM real, por lo que solo se muestra la predicción.",
+                                icon="ℹ️",
+                            )
+                            st.markdown('</div>', unsafe_allow_html=True)
+
+                    # --- Métricas si hay CHM real ---
+                    if metrics_up is not None:
+                        st.markdown('<div class="section-title">Métricas (comparación con CHM real)</div>', unsafe_allow_html=True)
+                        import pandas as pd
+
+                        df_metrics_up = pd.DataFrame(
+                            {
+                                "Métrica": ["MAE", "RMSE", "R² (pixel)", "R² (bloques)", "Bias"],
+                                "Valor": [
+                                    f"{metrics_up['mae']:.3f} m",
+                                    f"{metrics_up['rmse']:.3f} m",
+                                    f"{metrics_up['r2']:.3f}",
+                                    f"{metrics_up['r2_block']:.3f}",
+                                    f"{metrics_up['bias']:.3f} m",
+                                ],
+                            }
+                        )
+                        st.table(df_metrics_up)
+                    else:
+                        st.info(
+                            "No se calcularon métricas porque no se proporcionó un CHM real.",
+                            icon="ℹ️",
+                        )
+
+                except Exception as e:
+                    st.error(
+                        f"Ocurrió un error al procesar los archivos: {e}",
+                    )
+                    # Para ver la traza completa durante las pruebas
+                    st.code(traceback.format_exc())
+    # (si run_btn es False, no hacemos nada extra aquí)
 
 # CIERRE DEL CONTENEDOR
 st.markdown("</div>", unsafe_allow_html=True)
