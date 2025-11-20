@@ -44,7 +44,7 @@ Aquí se resume la arquitectura completa en 3 niveles: **encoder SSL**, **decode
 ### 1. Encoder SSL: ViT Huge con DINOv2
 
 <p align="center">
-  <img src="app/assets/vit.png" width="100%" />
+  <img src="app/assets/vit.png" width="60%" />
 </p>
 
 
@@ -131,7 +131,7 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 ### 3. Modelo GEDI global y fusión ALS + GEDI
 
 <p align="center">
-  <img src="app/assets/gedi.png" width="60%" />
+  <img src="app/assets/gedi.png" width="100%" />
 </p>
 
 1. **Modelo GEDI (CNN + metadata)**
@@ -167,17 +167,17 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 
 
 
----
 
 
-### 3. Descarga de pesos preentrenados ⚖️🌳
+
+### ⚖️🌳 Descarga de pesos preentrenados 
 
 Para que la aplicación pueda realizar **inferencia real**, es indispensable descargar los **pesos preentrenados** del modelo original de Meta AI:  
 **High-Resolution Canopy Height Maps**.
 
 
 
-#### 3.1. ¿De dónde descargar los pesos?
+#### ¿De dónde descargar los pesos?
 
 1. Ve al repositorio original del proyecto (Meta / `HighResolutionCanopyHeight`).
 2. Busca la sección de **model checkpoints / weights**.
@@ -201,17 +201,17 @@ saved_checkpoints/
 
 ---
 
-## 🚀 4. Ejecución del Proyecto con **Docker**
+### 🚀 Ejecución del Proyecto con **Docker**
 Instalación • Despliegue • Uso
 
 Este proyecto está preparado para ejecutarse fácilmente usando **Docker**, sin necesidad de instalar manualmente todas las dependencias en tu máquina local.
 
 
 
-### 📁 4.1. Clonar el repositorio
+#### 📁 Clonar el repositorio
 
 ```bash
-git clone <URL_DE_TU_REPOSITORIO>
+git clone https://github.com/StevenVegaL/HighRes-Canopy-Height
 cd HighResCanopyHeightApp
 ```
 
@@ -219,7 +219,7 @@ cd HighResCanopyHeightApp
 Antes de continuar, asegúrate de que la carpeta saved_checkpoints/ contiene los pesos indicados en la sección anterior (modelo CHM y RNet).
 
 
-🛠️ 4.2. Construir la imagen Docker
+#### 🛠️ Construir la imagen Docker
 Desde la raíz del proyecto, ejecuta:
 
 ```bash
@@ -238,20 +238,11 @@ Elemento	Descripción
 
 
 
-📦 El Dockerfile se encarga de:
-
-Instalar Python y las dependencias necesarias (PyTorch, PyTorch Lightning, Streamlit, etc.).
-
-Copiar el código fuente (app/, model/, utils/, etc.) dentro del contenedor.
-
-Asegurar el acceso a saved_checkpoints/ para cargar los pesos del modelo.
-
-Definir el comando de arranque de Streamlit como punto de entrada.
 
 
 
 
-▶️ 4.3. Ejecutar el contenedor
+####  ▶️ Ejecutar el contenedor
 Una vez construida la imagen, puedes levantar el contenedor con:
 
 ```bash
@@ -268,7 +259,7 @@ docker run -p 8502:8501 chm-demo
 
 
 
-🌐 4.4. Acceder a la aplicación
+#### 🌐 Acceder a la aplicación
 Con el contenedor en ejecución, abre tu navegador en:
 
 ```bash
@@ -276,25 +267,18 @@ http://localhost:8501
 ```
 Deberías ver la landing de la aplicación.
 
-Desde allí puedes:
-
-Navegar al modo “Demostración” usando el menú superior.
-
-Explorar tiles reales del dataset NEON.
-
-Visualizar la imagen aérea, el CHM real y el CHM predicho por el modelo.
 
 
-
-
-
-## 💻 5. Ejecución local (opcional, sin Docker)
-
-Aunque la forma recomendada de ejecutar el proyecto es mediante **Docker**, también puedes correr la aplicación **localmente** si ya tienes **Python** instalado en tu máquina.
 
 ---
 
-### 🧬 5.1. Crear entorno virtual e instalar dependencias
+### 💻 Ejecución local (opcional, sin Docker)
+
+Aunque la forma recomendada de ejecutar el proyecto es mediante **Docker**, también puedes correr la aplicación **localmente** si ya tienes **Python** instalado en tu máquina.
+
+
+
+#### 🧬 Crear entorno virtual e instalar dependencias
 
 Se recomienda usar un entorno virtual para aislar las dependencias del proyecto.
 
@@ -328,15 +312,9 @@ pip install -r requirements.txt
 
 ```
 
-Esto instalará todas las librerías necesarias para:
 
-Cargar el modelo CHM y la red de normalización RNet.
 
-Ejecutar la interfaz de Streamlit.
-
-Trabajar con imágenes, tensores y métricas del modelo.
-
-🚀 5.2. Lanzar la aplicación con Streamlit
+#### 🚀  Lanzar la aplicación con Streamlit
 Una vez instaladas las dependencias, desde la raíz del proyecto ejecuta:
 
 ```bash
@@ -354,288 +332,22 @@ Abre tu navegador y visita:
 http://localhost:8501
 ```
 
-Allí podrás:
-
-Ver la landing del proyecto.
-
-Acceder al modo Demostración.
-
-Explorar los tiles del dataset NEON o las opciones que hayas habilitado en la app.
-
-
-🧠 6. Explicación: ¿cómo se cargan los pesos y cómo se realiza la inferencia?
-La lógica de carga de pesos y de inferencia está dividida en dos contextos:
-
-
-🌲 Modo NEON (dataset) – usa RNet + NeonDataset.
-
-
-🖼️ Modo de imagen subida – usa solo el modelo CHM con normalización global.
-
-
-En esta sección se describe el Modo NEON (dataset).
-
-🌲 6.1. Modo NEON (dataset)
-La lógica principal está en:
-
-
-model/inference_neon_tile.py
-
-
-app/pages/Demostración.py
-
-
-
-⚙️ 6.1.1. Configuración de componentes (setup_neon_inference)
-En inference_neon_tile.py se inicializan todos los componentes de inferencia:
-components = setup_neon_inference(
-    checkpoint_name="compressed_SSLhuge_aerial.pth",
-    normtype=2,
-    trained_rgb=False,
-    src_img="neon",
-)
-
-Esta función realiza:
-1️⃣ Carga de la red de normalización RNet (si normtype == 2)
-model_norm = load_rnet_normalizer()
-
-2️⃣ Construcción del NeonDataset
-dataset = build_neon_dataset(
-    model_norm=model_norm,
-    normtype=normtype,
-    trained_rgb=trained_rgb,
-    src_img=src_img,
-)
-
-Aquí se aplica la normalización de dominio descrita en el paper para que las imágenes NEON queden en un espacio similar al de entrenamiento del backbone.
-3️⃣ Carga del modelo de altura de dosel (CHM)
-model, device = load_chm_model(checkpoint_name=checkpoint_name)
-
-Se activa el modelo DINOv2 + DPT que predice alturas en metros.
-4️⃣ Definición de la normalización global por canal
-norm = T.Normalize(
-    mean=(0.420, 0.411, 0.296),
-    std=(0.213, 0.156, 0.143),
-)
-
-Es la misma normalización utilizada en el script de inferencia original.
-🧩 Resultado
-components = {
-    "model": model,
-    "device": device,
-    "dataset": dataset,
-    "norm": norm,
-}
-
-Este diccionario se reutiliza en la app para todos los tiles NEON.
-
-⚡ 6.1.2. Inferencia sobre un tile (run_neon_tile_inference)
-Cuando el usuario selecciona un índice y pulsa:
-
-⚡ Calcular CHM para este tile
-
-en Demostración.py se llama a:
-result = run_neon_tile_inference(components, idx)
-
-Dentro de run_neon_tile_inference ocurren estos pasos:
-1️⃣ Obtener el sample del dataset
-img_no_norm, img_norm, chm = get_neon_sample(dataset, index)
-
-
-
-img_no_norm: imagen RGB original.
-
-
-img_norm: imagen ajustada por RNet / normalización de dominio.
-
-
-chm: CHM real (LiDAR).
-
-
-2️⃣ Preparar el batch y aplicar normalización global
-x = img_norm.unsqueeze(0)  # [1, 3, H, W]
-x = norm(x)
-x = x.to(device)
-
-3️⃣ Ejecutar el modelo CHM
-model.eval()
-with torch.no_grad():
-    pred = model(x)                # [1, 1, H, W]
-    pred = pred.cpu().relu()
-    pred_map = pred[0, 0].numpy()  # [H, W]
-
-pred_map es el CHM predicho en metros.
-4️⃣ Recuperar el CHM real
-chm_map = chm[0].numpy()
-
-5️⃣ Calcular métricas
-metrics = compute_all_metrics(pred_map, chm_map)
-
-Incluye:
-
-
-MAE
-
-
-RMSE
-
-
-R² pixel a pixel
-
-
-R² por bloques
-
-
-Bias
-
-
-6️⃣ Preparar la imagen RGB para visualización
-img_rgb = np.moveaxis(img_no_norm.numpy(), 0, 2)  # [H, W, 3]
-
-7️⃣ Resultado devuelto a la app
-result = {
-    "img_rgb": img_rgb,
-    "chm_gt": chm_map,
-    "chm_pred": pred_map,
-    "metrics": metrics,
-}
-
-En la interfaz de Streamlit:
-
-
-chm_pred y chm_gt se normalizan a [0, 1].
-
-
-Se convierten a mapas de color (p. ej. viridis) para mostrarlos como imágenes.
-
-
-Las métricas se muestran en una tabla junto a las visualizaciones.
-
-
-### 🖼️ 6.2. Modo de imagen subida
-
-En este modo **no se usa RNet**: se asume que las imágenes subidas por el usuario son razonablemente similares al dominio NEON (imágenes aéreas, alta resolución, etc.).
-
-La lógica principal está en el bloque `else:` de:
-
-- `app/pages/Demostración.py`
+Allí ceberías ver la landing de la aplicación.
 
 ---
 
-#### ⚙️ 6.2.1. Carga del modelo
+### 🧠 Explicación: ¿cómo se cargan los pesos y cómo se realiza la inferencia?
 
-Para este modo se prepara un conjunto de componentes más simple:
+La lógica de carga de pesos y de inferencia está dividida en dos contextos:
 
-```python
-model, device = load_chm_model(checkpoint_name="compressed_SSLhuge_aerial.pth")
 
-norm = T.Normalize(
-    mean=(0.420, 0.411, 0.296),
-    std=(0.213, 0.156, 0.143),
-)
+#### 🌲 Modo NEON (dataset) – usa RNet + NeonDataset.
 
-```
 
-En resumen:
+#### 🖼️ Modo de imagen subida – usa solo el modelo CHM con normalización global.
 
-Se carga el modelo CHM (backbone DINOv2 + decoder DPT).
 
-Se define la normalización global por canal, igual a la usada en el script de inferencia original.
 
-No se construye NeonDataset ni se aplica RNet.
-
-🔁 6.2.2. Flujo de inferencia
-
-El usuario puede subir:
-
-rgb_file: imagen aérea RGB.
-
-chm_file (opcional): raster de CHM real, co-registrado con la imagen RGB.
-
-1️⃣ Procesamiento de la imagen RGB
-La imagen se transforma a tensor normalizado antes de entrar al modelo:
-
-python
-
-rgb_img = Image.open(rgb_file).convert("RGB")
-img_np = np.array(rgb_img).astype("float32") / 255.0  # [H, W, 3]
-
-img_t = torch.from_numpy(img_np).permute(2, 0, 1)     # [3, H, W]
-x = img_t.unsqueeze(0)                                # [1, 3, H, W]
-x = norm(x).to(device)
-Pasos clave:
-
-Se abre la imagen y se asegura el modo RGB.
-
-Se normaliza a rango [0, 1].
-
-Se permutan las dimensiones a formato [C, H, W].
-
-Se añade la dimensión de batch → [1, 3, H, W].
-
-Se aplica la normalización global norm y se envía a la device.
-
-2️⃣ Predicción del CHM
-Se ejecuta el modelo para obtener el mapa de altura predicho:
-
-python
-Copiar código
-with torch.no_grad():
-    pred = model(x)
-    pred = pred.cpu().relu()[0, 0].numpy()  # [H, W]
-
-chm_pred_up = pred
-Se desactiva el gradiente (torch.no_grad()).
-
-El modelo devuelve un tensor [1, 1, H, W].
-
-Se lleva a CPU, se aplica relu() (sin alturas negativas) y se extrae el mapa [H, W].
-
-3️⃣ (Opcional) Uso de un CHM real para evaluación
-Si el usuario también sube un archivo de CHM real:
-
-python
-Copiar código
-chm_img = Image.open(chm_file)
-chm_arr = np.array(chm_img).astype("float32")
-
-if chm_arr.ndim == 3:
-    chm_arr = chm_arr[..., 0]
-
-if chm_arr.shape != chm_pred_up.shape:
-    raise ValueError(
-        f"Dimensiones distintas entre predicción {chm_pred_up.shape} "
-        f"y CHM real {chm_arr.shape}. Deben coincidir."
-    )
-Se carga el raster de CHM.
-
-Si viene con 3 canales, se toma solo uno.
-
-Se valida que el tamaño del CHM real coincida con el de la predicción; si no, se lanza un error.
-
-Solo cuando las dimensiones coinciden se calculan las métricas:
-
-python
-Copiar código
-metrics = compute_all_metrics(chm_pred_up, chm_arr)
-👀 6.2.3. Qué muestra la app en este modo
-La interfaz visualiza:
-
-✅ Imagen RGB subida por el usuario.
-
-✅ CHM predicho por el modelo (convertido a mapa de color).
-
-✅ CHM real, si fue proporcionado y tiene el mismo tamaño.
-
-✅ Una tabla de métricas (MAE, RMSE, R², Bias, etc.) cuando se proporciona un CHM real válido.
-
-De esta manera, el usuario puede:
-
-Probar el modelo con sus propias imágenes.
-
-Comparar la predicción del modelo contra un CHM real (si lo tiene).
-
-Evaluar cuantitativamente el desempeño mediante las métricas mostradas en la app
 
 
 
