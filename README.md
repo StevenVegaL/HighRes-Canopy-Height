@@ -35,48 +35,6 @@ Este proyecto reproduce y adapta ese enfoque usando **Transformers de visión pr
 
 ---
 
-## 🧠 Descripción del modelo e innovaciones principales
-
-El corazón del artículo (y de este repo) es un pipeline en varias fases:
-
-1. **Pre-entrenamiento auto-supervisado (SSL) en imágenes satelitales**
-   - Se usa un **ViT Huge** (Vision Transformer) pre-entrenado con **DINOv2** sobre **18 millones de imágenes satelitales Maxar**.
-   - El modelo aprende a “entender” texturas de bosque, bordes de copas, sombras, caminos, etc. **sin etiquetas de altura**.
-   - Resultado: un **encoder especializado en vegetación y paisaje**, que luego se reutiliza como backbone.
-
-2. **Decoder DPT para altura de dosel de alta resolución (ALS)**
-   - Encima del encoder congelado se entrena un **decoder DPT (Dense Prediction Transformer)**.
-   - Entrada: imágenes RGB de sitios NEON (1 m GSD).  
-   - Salida: mapas de altura de dosel (CHM) a la misma resolución.
-   - Se utiliza:
-     - **Arquitectura multi-escala (Reassemble + Fusion blocks)** para combinar contexto global y detalle fino.
-     - **Pérdida Sigloss (tipo profundidad)** y **salida por bins (256 contenedores de altura)** para mejorar la estabilidad y evitar sesgos hacia alturas pequeñas.
-
-3. **Modelo GEDI global (CNN + metadata)**
-   - Se entrena un modelo separado (CNN) que:
-     - Recibe parches RGB de 128×128.
-     - Usa metadatos del haz GEDI: latitud, longitud, elevación solar, ángulo off-nadir y pendiente del terreno.
-   - Predice la altura **RH95** (percentil 95 de altura) en el footprint de GEDI.
-   - Esto permite tener un modelo consistente con las mediciones **globales** de GEDI, aunque sean de baja resolución.
-
-4. **Fusión ALS + GEDI: mapa ajustado a escala global**
-   - El mapa de CHM de alta resolución que se obtuvo con ALS se corrige usando el modelo GEDI:
-     - El modelo GEDI actúa como una referencia global de “escala” de altura.
-     - Se calcula un **factor de reescalamiento espacialmente variable** que ajusta el CHM ALS hacia la escala de GEDI.
-   - Resultado: un **mapa continuo de altura de dosel**, con detalle de ~1 m, pero coherente con las alturas observadas por GEDI a escala global.
-
-🔍 **Innovaciones clave:**
-
-- Uso de **Transformers de visión pre-entrenados auto-supervisados** específicamente sobre **imágenes satelitales**, no solo datos genéricos tipo ImageNet.
-- Arquitectura **DPT multi-escala** adaptada a mapas de altura de dosel:
-  - Combina vista global del bosque y detalle de copas individuales.
-- **Salida por bins + Sigloss**:
-  - El modelo no predice directamente un escalar, sino una distribución discreta de alturas que luego se convierte en altura esperada.
-  - Mejora estabilidad y reduce sesgos.
-- **Fusión ALS + GEDI** para lograr:
-  - Detalle local (ALS) + coherencia global (GEDI) en un solo CHM continuo.
-
----
 
 ## 🏗️ Resumen teórico de la arquitectura
 
@@ -532,6 +490,9 @@ norm = T.Normalize(
     mean=(0.420, 0.411, 0.296),
     std=(0.213, 0.156, 0.143),
 )
+
+```
+
 En resumen:
 
 Se carga el modelo CHM (backbone DINOv2 + decoder DPT).
@@ -541,6 +502,7 @@ Se define la normalización global por canal, igual a la usada en el script de i
 No se construye NeonDataset ni se aplica RNet.
 
 🔁 6.2.2. Flujo de inferencia
+
 El usuario puede subir:
 
 rgb_file: imagen aérea RGB.
@@ -551,7 +513,7 @@ chm_file (opcional): raster de CHM real, co-registrado con la imagen RGB.
 La imagen se transforma a tensor normalizado antes de entrar al modelo:
 
 python
-Copiar código
+
 rgb_img = Image.open(rgb_file).convert("RGB")
 img_np = np.array(rgb_img).astype("float32") / 255.0  # [H, W, 3]
 
