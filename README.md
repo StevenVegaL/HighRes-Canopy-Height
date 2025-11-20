@@ -201,7 +201,7 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 
 
 
-### 📁 Estructura del repositorio
+## 📁 Estructura del repositorio
 
 La organización del proyecto está pensada para separar claramente la **lógica del modelo**, la **app de Streamlit**, los **pesos preentrenados** y la **configuración de despliegue con Docker**.
 
@@ -241,8 +241,9 @@ La organización del proyecto está pensada para separar claramente la **lógica
 └── README.md
 ```
 
+---
 
-### ⚖️🌳 Descarga de pesos preentrenados 
+## ⚖️🌳 Descarga de pesos preentrenados 
 
 Para que la aplicación pueda realizar **inferencia real**, es indispensable descargar los **pesos preentrenados** del modelo original de Meta AI:  
 **High-Resolution Canopy Height Maps**.
@@ -305,7 +306,7 @@ Si usaste los comandos de nombrados, esta carpeta se crea automáticamente y los
 
 ---
 
-### 🚀 Ejecución del Proyecto con **Docker**
+## 🚀 Ejecución del Proyecto con **Docker**
 Instalación • Despliegue • Uso
 
 Este proyecto está preparado para ejecutarse fácilmente usando **Docker**, sin necesidad de instalar manualmente todas las dependencias en tu máquina local.
@@ -376,7 +377,7 @@ Deberías ver la landing de la aplicación.
 
 ---
 
-### 💻 Ejecución local (opcional, sin Docker)
+## 💻 Ejecución local (opcional, sin Docker)
 
 Aunque la forma recomendada de ejecutar el proyecto es mediante **Docker**, también puedes correr la aplicación **localmente** si ya tienes **Python** instalado en tu máquina.
 
@@ -446,7 +447,7 @@ Allí ceberías ver la landing de la aplicación.
 
 
 
-### 🧠 Explicación: ¿cómo se cargan los pesos y cómo se realiza la inferencia?
+## 🧠 Explicación: ¿cómo se cargan los pesos y cómo se realiza la inferencia?
 
 La lógica de carga de pesos y de inferencia está dividida en dos contextos:
 
@@ -457,7 +458,7 @@ En la aplicación de Streamlit implementé estos **dos modos de uso**:
 
 ---
 
-#### 🌲 Modo NEON (dataset)
+### 🌲 Modo NEON (dataset)
 
 
 
@@ -508,7 +509,7 @@ De esta forma, el modo NEON reproduce de forma muy fiel el **pipeline original d
 
 ---
 
-#### 🖼️ Modo de imagen subida
+### 🖼️ Modo de imagen subida
 
 <p align="center">
   <img src="app/assets/imagen.png" width="100%" />
@@ -550,7 +551,7 @@ El flujo es:
 
 ---
 
-Con estos dos modos logro un equilibrio entre:
+Con estos dos modos logramos un equilibrio entre:
 
 - Un **modo muy fiel al paper**, usando directamente el dataset NEON, su pipeline y sus métricas originales.
 - Un **modo de experimentación**, donde se pueden evaluar pares de datos externos que respeten condiciones similares (imagen RGB + CHM real), pero todo presentado de forma más **visual e interactiva** en Streamlit.
