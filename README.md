@@ -258,12 +258,6 @@ docker run -p 8501:8501 chm-demo
 ```
 
 
-🔍 Detalle de parámetros:
-
-Flag / Valor	Función
--p 8501:8501	Mapea el puerto 8501 del contenedor al puerto 8501 de tu máquina local
-chm-demo	Nombre de la imagen creada en el paso anterior
-
 💡 Si el puerto 8501 ya está ocupado en tu máquina, puedes usar otro puerto externo, por ejemplo:
 
 ```bash
@@ -368,6 +362,142 @@ Acceder al modo Demostración.
 Explorar los tiles del dataset NEON o las opciones que hayas habilitado en la app.
 
 
+6. Explicación: ¿cómo se cargan los pesos y cómo se realiza la inferencia?
+
+La lógica de carga de pesos y de inferencia está dividida en dos contextos:
+
+Modo NEON (dataset) – usa RNet + NeonDataset.
+
+Modo de imagen subida – usa solo el modelo CHM con normalización global.
+
+6.1. Modo NEON (dataset)
+
+La lógica principal está en model/inference_neon_tile.py y en la página app/pages/Demostración.py.
+
+6.1.1. Configuración de componentes (setup_neon_inference)
+
+En inference_neon_tile.py:
+
+components = setup_neon_inference(
+    checkpoint_name="compressed_SSLhuge_aerial.pth",
+    normtype=2,
+    trained_rgb=False,
+    src_img="neon",
+)
+
+
+Esta función:
+
+Carga la red de normalización RNet (si normtype == 2) mediante:
+
+model_norm = load_rnet_normalizer()
+
+
+Construye el NeonDataset:
+
+dataset = build_neon_dataset(
+    model_norm=model_norm,
+    normtype=normtype,
+    trained_rgb=trained_rgb,
+    src_img=src_img,
+)
+
+
+Aquí se aplica la normalización de dominio descrita en el paper para que las imágenes NEON queden en un espacio similar al de entrenamiento del backbone.
+
+Carga el modelo de altura de dosel (CHM):
+
+model, device = load_chm_model(checkpoint_name=checkpoint_name)
+
+
+Esto activa el modelo DINOv2 + DPT que predice alturas en metros.
+
+Define la normalización global por canal:
+
+norm = T.Normalize(
+    mean=(0.420, 0.411, 0.296),
+    std=(0.213, 0.156, 0.143),
+)
+
+
+Es la misma normalización utilizada en el script de inferencia original.
+
+El resultado es un diccionario:
+
+components = {
+    "model": model,
+    "device": device,
+    "dataset": dataset,
+    "norm": norm,
+}
+
+
+que la app reutiliza para todos los tiles.
+
+6.1.2. Inferencia sobre un tile (run_neon_tile_inference)
+
+Cuando el usuario selecciona un índice y pulsa “⚡ Calcular CHM para este tile”, en Demostración.py se llama:
+
+result = run_neon_tile_inference(components, idx)
+
+
+Dentro de run_neon_tile_inference:
+
+Obtiene el sample del dataset:
+
+img_no_norm, img_norm, chm = get_neon_sample(dataset, index)
+
+
+img_no_norm: imagen RGB original.
+
+img_norm: imagen ya ajustada por RNet / normalización de dominio.
+
+chm: CHM real (LiDAR).
+
+Prepara el batch e incluye la normalización global:
+
+x = img_norm.unsqueeze(0)  # [1, 3, H, W]
+x = norm(x)
+x = x.to(device)
+
+
+Ejecuta el modelo CHM:
+
+model.eval()
+with torch.no_grad():
+    pred = model(x)          # [1, 1, H, W]
+    pred = pred.cpu().relu()
+    pred_map = pred[0, 0].numpy()  # [H, W]
+
+
+Recupera el CHM real:
+
+chm_map = chm[0].numpy()
+
+
+Calcula las métricas:
+
+metrics = compute_all_metrics(pred_map, chm_map)
+
+
+Que incluye: MAE, RMSE, R² pixel, R² por bloques, Bias, etc.
+
+Prepara la imagen RGB para mostrarla:
+
+img_rgb = np.moveaxis(img_no_norm.numpy(), 0, 2)  # [H, W, 3]
+
+
+Devuelve:
+
+result = {
+    "img_rgb": img_rgb,
+    "chm_gt": chm_map,
+    "chm_pred": pred_map,
+    "metrics": metrics,
+}
+
+
+En la app, chm_pred y chm_gt se normalizan a [0,1] y se convierten a mapas de color con un colormap tipo viridis para mostrarlos como imágenes.
 
 ### 🖼️ 6.2. Modo de imagen subida
 
