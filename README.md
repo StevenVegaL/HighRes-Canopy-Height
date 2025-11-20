@@ -65,10 +65,11 @@ Aquí se resume la arquitectura completa en 3 niveles: **encoder SSL**, **decode
   <img src="app/assets/vit2.png" width="60%" />
 </p>
 
-     - **Student**: recibe vistas globales + locales (con masking). Se actualiza por gradiente.
-     - **Teacher**: recibe vistas globales, se actualiza por EMA (promedio móvil de los pesos del student).
-   - Las salidas del student intentan **imitar las del teacher** → pérdida de auto-supervisión.
-   - Al final de esta fase nos quedamos con el **encoder entrenado**, no con un mapa de salida.
+
+  - **Student**: recibe vistas globales + locales (con masking). Se actualiza por gradiente.
+  - **Teacher**: recibe vistas globales, se actualiza por EMA (promedio móvil de los pesos del student).
+  - Las salidas del student intentan **imitar las del teacher** → pérdida de auto-supervisión.
+  - Al final de esta fase nos quedamos con el **encoder entrenado**, no con un mapa de salida.
 
 ---
 
@@ -380,7 +381,7 @@ http://localhost:8501
 Allí ceberías ver la landing de la aplicación.
 
 <p align="center">
-  <img src="app/assets/lading.png" width="100%" />
+  <img src="app/assets/landing.png" width="100%" />
 </p>
 
 ---
@@ -403,13 +404,13 @@ En la aplicación de Streamlit implementé estos **dos modos de uso**:
 
 
 En este modo trabajo con **ejemplos internos del dataset NEON**, que es el mismo conjunto de datos que usa el artículo original.  
-Aquí **no** permito que el usuario suba cualquier imagen, sino que utilizo los **tiles definidos en el CSV** del repositorio oficial.
+
 
 <p align="center">
   <img src="app/assets/neon.png" width="100%" />
 </p>
 
-
+Aquí **no** permito que el usuario suba cualquier imagen, sino que utilizo los **tiles definidos en el CSV** del repositorio oficial.
 
 El flujo es:
 
@@ -494,20 +495,6 @@ Con estos dos modos logro un equilibrio entre:
 
 - Un **modo muy fiel al paper**, usando directamente el dataset NEON, su pipeline y sus métricas originales.
 - Un **modo de experimentación**, donde se pueden evaluar pares de datos externos que respeten condiciones similares (imagen RGB + CHM real), pero todo presentado de forma más **visual e interactiva** en Streamlit.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
