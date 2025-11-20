@@ -176,36 +176,31 @@ La organización del proyecto está pensada para separar claramente la **lógica
 ├── app/
 │   ├── streamlit_landing_CHM_app.py  (Archivo principal de entrada de la app (landing / menú de navegación).)
 │   └── pages/
-│       ├── 1_Metodología.py
-│       └── Demostración.py
+│       ├── 1_Metodología.py (Página donde se explica la metodología del modelo, fases, arquitectura y flujo de datos.)
+│       └── Demostración.py  (Página central de la demo interactiva.)
 │
-├── model/
+├── model/   (Contiene la lógica de alto nivel para el modelo y la inferencia:)
 │   ├── ssl_model.py
 │   ├── inference_neon_tile.py
 │   ├── inference_uploaded_pair.py
 │   ├── neon_data.py
 │   └── metrics.py
 │
-├── models/
+├── models/   (implementaciones de bajo nivel reutilizadas del repositorio original del paper)
 │   ├── backbone.py
 │   ├── dpt_head.py
 │   ├── regressor.py
 │   └── pl_modules/
 │       └── ... (módulos auxiliares de PyTorch Lightning)
 │
-├── saved_checkpoints/
+├── saved_checkpoints/ (Guarda los pesos preentrenados del modelo CHM)
 │   └── compressed_SSLhuge_aerial.pth
 │
-├── data/
+├── data/  (Contiene los recursos necesarios para reconstruir el NeonDataset) 
 │   └── neon/
 │       ├── neon_tiles.csv
 │       └── ... (rutas / referencias a los tiles NEON)
 │
-├── assets/
-│   └── imagenes/
-│       ├── tile1.jpg
-│       ├── tile2.jpg
-│       └── ...
 │
 ├── Dockerfile
 ├── requirements.txt
@@ -398,12 +393,22 @@ En la aplicación de Streamlit implementé estos **dos modos de uso**:
 
 #### 🌲 Modo NEON (dataset)
 
+<p align="center">
+  <img src="app/assets/neon.png" width="100%" />
+</p>
+
 En este modo trabajo con **ejemplos internos del dataset NEON**, que es el mismo conjunto de datos que usa el artículo original.  
 Aquí **no** permito que el usuario suba cualquier imagen, sino que utilizo los **tiles definidos en el CSV** del repositorio oficial.
 
 El flujo es:
 
 1. A través de un **navegador de tiles** (índice NEON), selecciono un recorte del dataset.
+
+<p align="center">
+  <img src="app/assets/neon1.png" width="100%" />
+</p>
+
+
 2. Con ese índice, cargo:
    - La **imagen aérea RGB**.
    - El **CHM real** asociado (derivado de LiDAR).
@@ -415,11 +420,16 @@ El flujo es:
    - La **imagen aérea RGB**.
    - El **CHM predicho**.
    - El **CHM de referencia** (LiDAR).
+
 6. Con ambos mapas (predicho vs real) calculo métricas como:
    - **MAE**
    - **RMSE**
    - **R² (pixel y por bloques)**
    - **Bias (sesgo medio)**
+
+   <p align="center">
+  <img src="app/assets/neon2.png" width="100%" />
+</p>
 
 De esta forma, el modo NEON reproduce de forma muy fiel el **pipeline original de evaluación** que se describe en el paper.
 
@@ -427,16 +437,26 @@ De esta forma, el modo NEON reproduce de forma muy fiel el **pipeline original d
 
 #### 🖼️ Modo de imagen subida
 
+<p align="center">
+  <img src="app/assets/imagen.png" width="100%" />
+</p>
+
 El segundo modo es más flexible: la aplicación permite que el usuario suba un par de archivos:
 
 - Una **imagen RGB** (vista aérea).
 - Opcionalmente, el **CHM real** correspondiente a esa misma zona.
+
 
 La idea es que estos archivos tengan características similares a las de NEON (vista aérea, buena resolución, recortes tipo 256×256, etc.).
 
 El flujo es:
 
 1. El usuario sube la imagen RGB (y opcionalmente el CHM real).
+
+<p align="center">
+  <img src="app/assets/imagen1.png" width="100%" />
+</p>
+
 2. La app verifica que:
    - La imagen sea **RGB (3 canales)**.
    - Si se sube CHM real, sus **dimensiones coincidan exactamente** con la predicción que produce el modelo.
@@ -450,6 +470,10 @@ El flujo es:
 6. Todos los resultados se muestran de forma interactiva en Streamlit, con:
    - Imágenes en formato RGB/colormap.
    - Métricas en tablas y tarjetas tipo “dashboard”.
+
+<p align="center">
+  <img src="app/assets/imagen2.png" width="100%" />
+</p>
 
 ---
 
