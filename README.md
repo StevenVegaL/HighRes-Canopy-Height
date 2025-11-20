@@ -82,11 +82,12 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 
 1. **Reassemble blocks**
 
-<p align="center">
+   - Toman las features del ViT en distintas capas y las transforman en mapas 2D a distintas escalas.
+
+   <p align="center">
   <img src="app/assets/rem.png" width="60%" />
 </p>
 
-   - Toman las features del ViT en distintas capas y las transforman en mapas 2D a distintas escalas.
    - Cada bloque:
      - **Read**: reordena los tokens a su posición espacial → mapa 2D.
      - **Concat + Project (Conv 1×1)**: apila canales y reduce/reorganiza la información.
@@ -94,11 +95,14 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 
 2. **Fusion blocks**
 
+
+
+   - Combinan información **global** (mapas más pequeños) con **detalle fino** (mapas de mayor resolución).
+
 <p align="center">
   <img src="app/assets/fus.png" width="50%" />
 </p>
 
-   - Combinan información **global** (mapas más pequeños) con **detalle fino** (mapas de mayor resolución).
    - Cada bloque:
      - Aplica una **Residual Conv Unit** para limpiar/refinar.
      - **Suma residual** entre el mapa global y el mapa más fino.
@@ -135,9 +139,6 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 </p>
 
 1. **Modelo GEDI (CNN + metadata)**
-<p align="center">
-  <img src="app/assets/cnn.png" width="100%" />
-</p>
 
    - Entrada:
      - Parche RGB de 128×128.
@@ -147,17 +148,23 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
      - **Flatten → capas densas**, donde se concatenan los metadatos.
    - Salida:
      - Un escalar: altura **RH95** (GEDI) en ese footprint.
+
+<p align="center">
+  <img src="app/assets/cnn.png" width="100%" />
+</p>
+
    - Pérdida:
    
      - **L1 Loss** entre altura predicha y altura medida por GEDI.
 
 2. **Cálculo de factor de reescalamiento**
 
+   - Se cruzan las predicciones del modelo ALS y del modelo GEDI en zonas con datos comunes.
+   - Se calcula un **factor de escala espacialmente suave** que corrige el CHM ALS.
+
 <p align="center">
   <img src="app/assets/combi.png" width="100%" />
 </p>
-   - Se cruzan las predicciones del modelo ALS y del modelo GEDI en zonas con datos comunes.
-   - Se calcula un **factor de escala espacialmente suave** que corrige el CHM ALS.
 
 3. **CHM final**
    - El CHM ALS de alta resolución se multiplica por el factor de reescalamiento.
@@ -205,7 +212,7 @@ La organización del proyecto está pensada para separar claramente la **lógica
 ├── Dockerfile
 ├── requirements.txt
 └── README.md
-
+```
 
 
 ### ⚖️🌳 Descarga de pesos preentrenados 
@@ -393,25 +400,31 @@ En la aplicación de Streamlit implementé estos **dos modos de uso**:
 
 #### 🌲 Modo NEON (dataset)
 
-<p align="center">
-  <img src="app/assets/neon.png" width="100%" />
-</p>
+
 
 En este modo trabajo con **ejemplos internos del dataset NEON**, que es el mismo conjunto de datos que usa el artículo original.  
 Aquí **no** permito que el usuario suba cualquier imagen, sino que utilizo los **tiles definidos en el CSV** del repositorio oficial.
 
+<p align="center">
+  <img src="app/assets/neon.png" width="100%" />
+</p>
+
+
+
 El flujo es:
 
 1. A través de un **navegador de tiles** (índice NEON), selecciono un recorte del dataset.
+
+
+2. Con ese índice, cargo:
+   - La **imagen aérea RGB**.
+   - El **CHM real** asociado (derivado de LiDAR).
 
 <p align="center">
   <img src="app/assets/neon1.png" width="100%" />
 </p>
 
 
-2. Con ese índice, cargo:
-   - La **imagen aérea RGB**.
-   - El **CHM real** asociado (derivado de LiDAR).
 3. Para la carga de datos reutilizo la misma lógica del paper:
    - Uso la clase `NeonDataset`.
    - Aplico la red de normalización de dominio **RNet** para que las imágenes queden en el mismo espacio del entrenamiento.
