@@ -216,13 +216,16 @@ Para que la aplicación pueda realizar **inferencia real**, es indispensable des
 
 ---
 
+
 #### 3.2. Dónde ubicar los archivos descargados
 
 Copia los archivos descargados en la carpeta:
 
 ```bash
 saved_checkpoints/
+```
 
+---
 
 ## 🚀 4. Ejecución del Proyecto con **Docker**
 Instalación • Despliegue • Uso
@@ -236,15 +239,19 @@ Este proyecto está preparado para ejecutarse fácilmente usando **Docker**, sin
 ```bash
 git clone <URL_DE_TU_REPOSITORIO>
 cd HighResCanopyHeightApp
+```
 ⚠️ Importante:
 Antes de continuar, asegúrate de que la carpeta saved_checkpoints/ contiene los pesos indicados en la sección anterior (modelo CHM y RNet).
 
 🛠️ 4.2. Construir la imagen Docker
 Desde la raíz del proyecto, ejecuta:
 
-bash
-Copiar código
+```bash
+
 docker build -t chm-demo .
+
+```
+
 🔎 ¿Qué hace este comando?
 
 Elemento	Descripción
@@ -261,12 +268,14 @@ Asegurar el acceso a saved_checkpoints/ para cargar los pesos del modelo.
 
 Definir el comando de arranque de Streamlit como punto de entrada.
 
+
 ▶️ 4.3. Ejecutar el contenedor
 Una vez construida la imagen, puedes levantar el contenedor con:
 
-bash
-Copiar código
+```bash
 docker run -p 8501:8501 chm-demo
+```
+
 🔍 Detalle de parámetros:
 
 Flag / Valor	Función
@@ -275,16 +284,20 @@ chm-demo	Nombre de la imagen creada en el paso anterior
 
 💡 Si el puerto 8501 ya está ocupado en tu máquina, puedes usar otro puerto externo, por ejemplo:
 
-bash
-Copiar código
+```bash
 docker run -p 8502:8501 chm-demo
+```
+
+
+
 🌐 4.4. Acceder a la aplicación
 Con el contenedor en ejecución, abre tu navegador en:
 
-text
-Copiar código
+```bash
 http://localhost:8501
+```
 Deberías ver la landing de la aplicación.
+
 Desde allí puedes:
 
 Navegar al modo “Demostración” usando el menú superior.
@@ -311,25 +324,32 @@ Se recomienda usar un entorno virtual para aislar las dependencias del proyecto.
 
 ```bash
 python -m venv .venv
+```
+
 En Windows:
 
-bash
-Copiar código
+```bash
 .venv\Scripts\activate
+```
+
 En Linux / macOS:
 
-bash
-Copiar código
+```bash
+
 source .venv/bin/activate
+```
+
 Verás que el prompt de tu terminal cambia, indicando que el entorno .venv está activo.
 
 2️⃣ Actualizar pip e instalar dependencias
 Con el entorno virtual activado, ejecuta:
 
-bash
-Copiar código
+```bash
 pip install --upgrade pip
 pip install -r requirements.txt
+
+```
+
 Esto instalará todas las librerías necesarias para:
 
 Cargar el modelo CHM y la red de normalización RNet.
@@ -341,17 +361,21 @@ Trabajar con imágenes, tensores y métricas del modelo.
 🚀 5.2. Lanzar la aplicación con Streamlit
 Una vez instaladas las dependencias, desde la raíz del proyecto ejecuta:
 
-bash
-Copiar código
+```bash
+
 streamlit run app/streamlit_landing_CHM_app.py
+
+```
+
 Si todo está correctamente configurado (incluyendo los pesos en saved_checkpoints/), Streamlit levantará la aplicación.
 
 🌐 Acceder a la app
 Abre tu navegador y visita:
 
-text
-Copiar código
+```bash
 http://localhost:8501
+```
+
 Allí podrás:
 
 Ver la landing del proyecto.
