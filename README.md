@@ -15,22 +15,48 @@
 
 ---
 
-## 📌 Contexto y objetivo
+## 📌 Contexto y objetivo del proyecto
 
-El monitoreo forestal moderno necesita ir más allá del “bosque / no bosque” y aproximarse a un **censo estructural del bosque**:  
-- ¿Cuánta área tiene árboles?  
-- ¿Qué tan altos son esos árboles?  
-- ¿Cómo se distribuye la altura del dosel en el territorio?
+El monitoreo forestal es indispensable para la gestión de recursos naturales y la comprensión del cambio climático.  
+Para hacerlo bien, no basta con un mapa binario “bosque / no bosque”: se necesita un **censo estructural del bosque**, es decir, saber:
 
-El artículo base propone un modelo capaz de **convertir imágenes satelitales RGB de muy alta resolución en mapas continuos de altura de dosel (~1 m)**, combinando información de:
+- cuánta área tiene árboles,
+- qué tan altos son esos árboles,
+- y cómo se distribuye la altura del dosel en el territorio.
 
-- **LiDAR aéreo (ALS)** → detalle fino, pero cobertura limitada.
-- **LiDAR satelital GEDI** → cobertura casi global, pero resolución (~25 m) y muestreo discreto (huellas).
+Hoy existen herramientas de teledetección potentes, como el **LiDAR (láser)** y las cámaras ópticas de alta resolución, que permiten reconstruir bastante bien la estructura forestal.  
+Sin embargo, las soluciones de alcance global presentan limitaciones importantes. En particular:
 
-Este proyecto reproduce y adapta ese enfoque usando **Transformers de visión pre-entrenados**, y construye una interfaz en **Streamlit** para explorar:
+- El **LiDAR satelital GEDI** (NASA) ofrece cobertura casi global,  
+  pero con **baja resolución (~25 m)** y datos **discretos** en forma de huellas,  
+  no como un mapa continuo.
+- El **LiDAR aéreo (ALS)** sí permite mapas muy detallados,  
+  pero solo existe para campañas puntuales y regiones concretas.
 
-- Métricas científicas (MAE, RMSE, R², sesgo, altura P95).
-- Métricas de **“censo estructural”** (altura promedio del dosel, % de área con árboles, distribución de alturas, etc.).
+Esto genera un **vacío de datos continuos de muy alta resolución (VHR)** sobre la altura del dosel: justo el tipo de información que se necesitaría como base para un censo forestal estructural detallado.
+
+A partir de este contexto, la pregunta problema que abordamos es:
+
+> **¿Cómo generar, a partir de imágenes satelitales RGB de alta resolución, mapas continuos y precisos de altura del dosel que sirvan de base a un censo forestal estructural de detalle?**
+
+Para cerrar este vacío, tomamos como referencia el artículo:
+
+> *“High-resolution canopy height maps by learning from airborne lidar and spaceborne GEDI”* (Meta / FAIR)
+
+Este trabajo propone convertir imágenes ópticas de muy alta resolución en **mapas continuos de altura por píxel (~1 m)**, combinando:
+
+- **LiDAR aéreo (ALS)** → detalle fino y estructura local del dosel.  
+- **LiDAR satelital GEDI** → contexto global y calibración de alturas.
+
+En este repositorio:
+
+- Reproducimos y adaptamos el modelo basado en *Vision Transformers* y *Dense Prediction Transformer (DPT)*.  
+- Utilizamos los modelos preentrenados publicados por los autores (SSL + ALS + GEDI).  
+- Construimos una interfaz en **Streamlit** que permite:
+  - explorar ejemplos reales del dataset NEON,  
+  - cargar pares propios (RGB + CHM) para evaluación,  
+  - y visualizar de forma interactiva mapas de altura del dosel que pueden usarse como base para un censo estructural (altura promedio, distribución de alturas, etc.).
+
 
 ---
 
@@ -222,28 +248,60 @@ Para que la aplicación pueda realizar **inferencia real**, es indispensable des
 **High-Resolution Canopy Height Maps**.
 
 
-
 #### ¿De dónde descargar los pesos?
 
-1. Ve al repositorio original del proyecto (Meta / `HighResolutionCanopyHeight`).
-2. Busca la sección de **model checkpoints / weights**.
-3. Descarga, como mínimo, los siguientes archivos:
+Para mantenernos alineados con el repositorio original de Meta, los datos y modelos preentrenados se descargan desde un bucket público de Amazon S3:
 
-- ✅ **Checkpoint del modelo CHM**, por ejemplo:  
-  `compressed_SSLhuge_aerial.pth`
+`S3: s3://dataforgood-fb-data/forests/v1/models/`
 
-- ✅ **Pesos de la red de normalización RNet**, usados cuando `normtype = 2`.  
-  El nombre del archivo debe coincidir con lo que espera la función  
-  `load_rnet_normalizer()` en `model/ssl_model.py`.
-
-
-#### 3.2. Dónde ubicar los archivos descargados
-
-Copia los archivos descargados en la carpeta:
+Desde la raíz del repositorio (la carpeta donde está este `README.md`), ejecuta en la terminal:
 
 ```bash
-saved_checkpoints/
+aws s3 --no-sign-request cp --recursive s3://dataforgood-fb-data/forests/v1/models/ .
+unzip data.zip
+rm data.zip
 ```
+
+> ; Esto hará tres cosas:
+
+1. Descargar todo el contenido del bucket (datos + checkpoints) a tu máquina.
+2. Descomprimir data.zip (que contiene, entre otros, las imágenes aéreas de NEON).
+3. Eliminar el .zip para no ocupar espacio extra.
+
+💡 **Requisito:** debes tener instalado el AWS CLI (`aws`) y ejecutarlo desde la raíz del proyecto.
+
+---
+
+#### ¿Qué archivos son importantes para este proyecto?
+
+Después de correr los comandos anteriores, en la carpeta `saved_checkpoints/` tendrás varios modelos.  
+Para esta app de Streamlit, los más relevantes son:
+
+- `compressed_SSLhuge_aerial.pth`
+
+  Encoder entrenado en imágenes satelitales y decoder entrenado en imágenes aéreas.
+
+  Es el checkpoint que usamos para inferencia en la aplicación (modo NEON / modo imagen subida).
+
+- **Pesos de la red de normalización RNet**
+
+  Se utilizan cuando normtype = 2.
+
+  El nombre del archivo debe coincidir con el que espera la función  
+  `load_rnet_normalizer()` en `model/ssl_model.py`.
+
+  Importante: no renombres los archivos, para que el código lo encuentre sin problemas.
+
+---
+
+#### ¿Dónde ubicar los archivos descargados?
+
+Todos los checkpoints deben quedar en la carpeta:
+
+`saved_checkpoints/`
+
+Si usaste los comandos de nombrados, esta carpeta se crea automáticamente y los archivos ya quedarán en la ubicación correcta, por lo que no es necesario moverlos a mano.
+
 
 ---
 
@@ -409,6 +467,7 @@ En este modo trabajo con **ejemplos internos del dataset NEON**, que es el mismo
 <p align="center">
   <img src="app/assets/neon.png" width="100%" />
 </p>
+
 
 Aquí **no** permito que el usuario suba cualquier imagen, sino que utilizo los **tiles definidos en el CSV** del repositorio oficial.
 
