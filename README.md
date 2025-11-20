@@ -447,7 +447,7 @@ Allí ceberías ver la landing de la aplicación.
 
 
 
-## 🧠 Explicación: ¿cómo se cargan los pesos y cómo se realiza la inferencia?
+## 🧠 ¿cómo se realiza la inferencia?
 
 La lógica de carga de pesos y de inferencia está dividida en dos contextos:
 
