@@ -44,7 +44,7 @@ Aquí se resume la arquitectura completa en 3 niveles: **encoder SSL**, **decode
 ### 1. Encoder SSL: ViT Huge con DINOv2
 
 <p align="center">
-  <img src="app/assets/vit.png" width="60%" />
+  <img src="app/assets/vit.png" width="100%" />
 </p>
 
 
@@ -62,7 +62,7 @@ Aquí se resume la arquitectura completa en 3 niveles: **encoder SSL**, **decode
    - Dos ViT con la misma arquitectura:
 
 <p align="center">
-  <img src="app/assets/vit2.png" width="100%" />
+  <img src="app/assets/vit2.png" width="60%" />
 </p>
 
      - **Student**: recibe vistas globales + locales (con masking). Se actualiza por gradiente.
@@ -95,7 +95,7 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 2. **Fusion blocks**
 
 <p align="center">
-  <img src="app/assets/fus.png" width="60%" />
+  <img src="app/assets/fus.png" width="50%" />
 </p>
 
    - Combinan información **global** (mapas más pequeños) con **detalle fino** (mapas de mayor resolución).
@@ -167,6 +167,49 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 
 
 
+### 📁 Estructura del repositorio
+
+La organización del proyecto está pensada para separar claramente la **lógica del modelo**, la **app de Streamlit**, los **pesos preentrenados** y la **configuración de despliegue con Docker**.
+
+```bash
+.
+├── app/
+│   ├── streamlit_landing_CHM_app.py  (Archivo principal de entrada de la app (landing / menú de navegación).)
+│   └── pages/
+│       ├── 1_Metodología.py
+│       └── Demostración.py
+│
+├── model/
+│   ├── ssl_model.py
+│   ├── inference_neon_tile.py
+│   ├── inference_uploaded_pair.py
+│   ├── neon_data.py
+│   └── metrics.py
+│
+├── models/
+│   ├── backbone.py
+│   ├── dpt_head.py
+│   ├── regressor.py
+│   └── pl_modules/
+│       └── ... (módulos auxiliares de PyTorch Lightning)
+│
+├── saved_checkpoints/
+│   └── compressed_SSLhuge_aerial.pth
+│
+├── data/
+│   └── neon/
+│       ├── neon_tiles.csv
+│       └── ... (rutas / referencias a los tiles NEON)
+│
+├── assets/
+│   └── imagenes/
+│       ├── tile1.jpg
+│       ├── tile2.jpg
+│       └── ...
+│
+├── Dockerfile
+├── requirements.txt
+└── README.md
 
 
 
@@ -334,17 +377,103 @@ http://localhost:8501
 
 Allí ceberías ver la landing de la aplicación.
 
+<p align="center">
+  <img src="app/assets/lading.png" width="100%" />
+</p>
+
 ---
+
+
 
 ### 🧠 Explicación: ¿cómo se cargan los pesos y cómo se realiza la inferencia?
 
 La lógica de carga de pesos y de inferencia está dividida en dos contextos:
 
+- #### 🌲 Modo NEON (dataset) – usa **RNet + NeonDataset**  
+- #### 🖼️ Modo de imagen subida – usa solo el **modelo CHM con normalización global**
 
-#### 🌲 Modo NEON (dataset) – usa RNet + NeonDataset.
+En la aplicación de Streamlit implementé estos **dos modos de uso**:
+
+---
+
+#### 🌲 Modo NEON (dataset)
+
+En este modo trabajo con **ejemplos internos del dataset NEON**, que es el mismo conjunto de datos que usa el artículo original.  
+Aquí **no** permito que el usuario suba cualquier imagen, sino que utilizo los **tiles definidos en el CSV** del repositorio oficial.
+
+El flujo es:
+
+1. A través de un **navegador de tiles** (índice NEON), selecciono un recorte del dataset.
+2. Con ese índice, cargo:
+   - La **imagen aérea RGB**.
+   - El **CHM real** asociado (derivado de LiDAR).
+3. Para la carga de datos reutilizo la misma lógica del paper:
+   - Uso la clase `NeonDataset`.
+   - Aplico la red de normalización de dominio **RNet** para que las imágenes queden en el mismo espacio del entrenamiento.
+4. Sobre la imagen normalizada paso el **modelo Transformer preentrenado (DINOv2 + DPT)** y obtengo el **mapa de altura predicho (CHM)**.
+5. Como también tengo el CHM real, en la interfaz puedo mostrar:
+   - La **imagen aérea RGB**.
+   - El **CHM predicho**.
+   - El **CHM de referencia** (LiDAR).
+6. Con ambos mapas (predicho vs real) calculo métricas como:
+   - **MAE**
+   - **RMSE**
+   - **R² (pixel y por bloques)**
+   - **Bias (sesgo medio)**
+
+De esta forma, el modo NEON reproduce de forma muy fiel el **pipeline original de evaluación** que se describe en el paper.
+
+---
+
+#### 🖼️ Modo de imagen subida
+
+El segundo modo es más flexible: la aplicación permite que el usuario suba un par de archivos:
+
+- Una **imagen RGB** (vista aérea).
+- Opcionalmente, el **CHM real** correspondiente a esa misma zona.
+
+La idea es que estos archivos tengan características similares a las de NEON (vista aérea, buena resolución, recortes tipo 256×256, etc.).
+
+El flujo es:
+
+1. El usuario sube la imagen RGB (y opcionalmente el CHM real).
+2. La app verifica que:
+   - La imagen sea **RGB (3 canales)**.
+   - Si se sube CHM real, sus **dimensiones coincidan exactamente** con la predicción que produce el modelo.
+3. La imagen RGB pasa por el mismo **preprocesamiento**:
+   - Conversión a `float32` y normalización a `[0, 1]`.
+   - Aplicación de la **normalización global por canal** (los mismos `mean`/`std` del script original).
+4. Esa imagen normalizada se pasa al **modelo CHM preentrenado**, que genera el mapa de altura predicho.
+5. Si el usuario también subió un CHM real con el mismo tamaño, la app:
+   - Compara **predicción vs CHM real**.
+   - Calcula nuevamente las **métricas de error** (MAE, RMSE, R², Bias, etc.).
+6. Todos los resultados se muestran de forma interactiva en Streamlit, con:
+   - Imágenes en formato RGB/colormap.
+   - Métricas en tablas y tarjetas tipo “dashboard”.
+
+---
+
+Con estos dos modos logro un equilibrio entre:
+
+- Un **modo muy fiel al paper**, usando directamente el dataset NEON, su pipeline y sus métricas originales.
+- Un **modo de experimentación**, donde se pueden evaluar pares de datos externos que respeten condiciones similares (imagen RGB + CHM real), pero todo presentado de forma más **visual e interactiva** en Streamlit.
 
 
-#### 🖼️ Modo de imagen subida – usa solo el modelo CHM con normalización global.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -357,5 +486,4 @@ La lógica de carga de pesos y de inferencia está dividida en dos contextos:
 
 - Weinstein, B. G., et al. **High-resolution canopy height maps by learning from airborne lidar and spaceborne GEDI.**  
 - Repositorio oficial: https://github.com/facebookresearch/HighResCanopyHeight
-- Oquab, M., et al. **DINOv2: Learning robust visual features without supervision.**
-- Ranftl, R., et al. **Vision Transformers for dense prediction (DPT).**
+
