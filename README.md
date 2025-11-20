@@ -192,29 +192,179 @@ La aplicación de este repo incluye:
 
 
 
+---
 
 
+### 3. Descarga de pesos preentrenados ⚖️🌳
 
-
-
-
-
-
-
-
-
-
-
+Para que la aplicación pueda realizar **inferencia real**, es indispensable descargar los **pesos preentrenados** del modelo original de Meta AI:  
+**High-Resolution Canopy Height Maps**.
 
 ---
 
-## 🧬 Tecnologías principales
+#### 3.1. ¿De dónde descargar los pesos?
 
-- Python, PyTorch
-- Vision Transformers (ViT Huge, DINOv2)
-- Dense Prediction Transformer (DPT)
-- Redes convolucionales (CNN)
-- Streamlit para visualización interactiva
+1. Ve al repositorio original del proyecto (Meta / `HighResolutionCanopyHeight`).
+2. Busca la sección de **model checkpoints / weights**.
+3. Descarga, como mínimo, los siguientes archivos:
+
+- ✅ **Checkpoint del modelo CHM**, por ejemplo:  
+  `compressed_SSLhuge_aerial.pth`
+- ✅ **Pesos de la red de normalización RNet**, usados cuando `normtype = 2`.  
+  El nombre del archivo debe coincidir con lo que espera la función  
+  `load_rnet_normalizer()` en `model/ssl_model.py`.
+
+---
+
+#### 3.2. Dónde ubicar los archivos descargados
+
+Copia los archivos descargados en la carpeta:
+
+```bash
+saved_checkpoints/
+
+
+## 🚀 4. Ejecución del Proyecto con **Docker**
+Instalación • Despliegue • Uso
+
+Este proyecto está preparado para ejecutarse fácilmente usando **Docker**, sin necesidad de instalar manualmente todas las dependencias en tu máquina local.
+
+---
+
+### 📁 4.1. Clonar el repositorio
+
+```bash
+git clone <URL_DE_TU_REPOSITORIO>
+cd HighResCanopyHeightApp
+⚠️ Importante:
+Antes de continuar, asegúrate de que la carpeta saved_checkpoints/ contiene los pesos indicados en la sección anterior (modelo CHM y RNet).
+
+🛠️ 4.2. Construir la imagen Docker
+Desde la raíz del proyecto, ejecuta:
+
+bash
+Copiar código
+docker build -t chm-demo .
+🔎 ¿Qué hace este comando?
+
+Elemento	Descripción
+-t chm-demo	Asigna el nombre chm-demo a la imagen Docker
+.	Usa el Dockerfile ubicado en el directorio actual
+
+📦 El Dockerfile se encarga de:
+
+Instalar Python y las dependencias necesarias (PyTorch, PyTorch Lightning, Streamlit, etc.).
+
+Copiar el código fuente (app/, model/, utils/, etc.) dentro del contenedor.
+
+Asegurar el acceso a saved_checkpoints/ para cargar los pesos del modelo.
+
+Definir el comando de arranque de Streamlit como punto de entrada.
+
+▶️ 4.3. Ejecutar el contenedor
+Una vez construida la imagen, puedes levantar el contenedor con:
+
+bash
+Copiar código
+docker run -p 8501:8501 chm-demo
+🔍 Detalle de parámetros:
+
+Flag / Valor	Función
+-p 8501:8501	Mapea el puerto 8501 del contenedor al puerto 8501 de tu máquina local
+chm-demo	Nombre de la imagen creada en el paso anterior
+
+💡 Si el puerto 8501 ya está ocupado en tu máquina, puedes usar otro puerto externo, por ejemplo:
+
+bash
+Copiar código
+docker run -p 8502:8501 chm-demo
+🌐 4.4. Acceder a la aplicación
+Con el contenedor en ejecución, abre tu navegador en:
+
+text
+Copiar código
+http://localhost:8501
+Deberías ver la landing de la aplicación.
+Desde allí puedes:
+
+Navegar al modo “Demostración” usando el menú superior.
+
+Explorar tiles reales del dataset NEON.
+
+Visualizar la imagen aérea, el CHM real y el CHM predicho por el modelo.
+
+
+
+
+
+## 💻 5. Ejecución local (opcional, sin Docker)
+
+Aunque la forma recomendada de ejecutar el proyecto es mediante **Docker**, también puedes correr la aplicación **localmente** si ya tienes **Python** instalado en tu máquina.
+
+---
+
+### 🧬 5.1. Crear entorno virtual e instalar dependencias
+
+Se recomienda usar un entorno virtual para aislar las dependencias del proyecto.
+
+#### 1️⃣ Crear y activar el entorno virtual
+
+```bash
+python -m venv .venv
+En Windows:
+
+bash
+Copiar código
+.venv\Scripts\activate
+En Linux / macOS:
+
+bash
+Copiar código
+source .venv/bin/activate
+Verás que el prompt de tu terminal cambia, indicando que el entorno .venv está activo.
+
+2️⃣ Actualizar pip e instalar dependencias
+Con el entorno virtual activado, ejecuta:
+
+bash
+Copiar código
+pip install --upgrade pip
+pip install -r requirements.txt
+Esto instalará todas las librerías necesarias para:
+
+Cargar el modelo CHM y la red de normalización RNet.
+
+Ejecutar la interfaz de Streamlit.
+
+Trabajar con imágenes, tensores y métricas del modelo.
+
+🚀 5.2. Lanzar la aplicación con Streamlit
+Una vez instaladas las dependencias, desde la raíz del proyecto ejecuta:
+
+bash
+Copiar código
+streamlit run app/streamlit_landing_CHM_app.py
+Si todo está correctamente configurado (incluyendo los pesos en saved_checkpoints/), Streamlit levantará la aplicación.
+
+🌐 Acceder a la app
+Abre tu navegador y visita:
+
+text
+Copiar código
+http://localhost:8501
+Allí podrás:
+
+Ver la landing del proyecto.
+
+Acceder al modo Demostración.
+
+Explorar los tiles del dataset NEON o las opciones que hayas habilitado en la app.
+
+
+
+
+
+
 
 ---
 
