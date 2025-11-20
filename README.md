@@ -386,7 +386,126 @@ Explorar los tiles del dataset NEON o las opciones que hayas habilitado en la ap
 
 
 
+### 🖼️ 6.2. Modo de imagen subida
 
+En este modo **no se usa RNet**: se asume que las imágenes subidas por el usuario son razonablemente similares al dominio NEON (imágenes aéreas, alta resolución, etc.).
+
+La lógica principal está en el bloque `else:` de:
+
+- `app/pages/Demostración.py`
+
+---
+
+#### ⚙️ 6.2.1. Carga del modelo
+
+Para este modo se prepara un conjunto de componentes más simple:
+
+```python
+model, device = load_chm_model(checkpoint_name="compressed_SSLhuge_aerial.pth")
+
+norm = T.Normalize(
+    mean=(0.420, 0.411, 0.296),
+    std=(0.213, 0.156, 0.143),
+)
+En resumen:
+
+Se carga el modelo CHM (backbone DINOv2 + decoder DPT).
+
+Se define la normalización global por canal, igual a la usada en el script de inferencia original.
+
+No se construye NeonDataset ni se aplica RNet.
+
+🔁 6.2.2. Flujo de inferencia
+El usuario puede subir:
+
+rgb_file: imagen aérea RGB.
+
+chm_file (opcional): raster de CHM real, co-registrado con la imagen RGB.
+
+1️⃣ Procesamiento de la imagen RGB
+La imagen se transforma a tensor normalizado antes de entrar al modelo:
+
+python
+Copiar código
+rgb_img = Image.open(rgb_file).convert("RGB")
+img_np = np.array(rgb_img).astype("float32") / 255.0  # [H, W, 3]
+
+img_t = torch.from_numpy(img_np).permute(2, 0, 1)     # [3, H, W]
+x = img_t.unsqueeze(0)                                # [1, 3, H, W]
+x = norm(x).to(device)
+Pasos clave:
+
+Se abre la imagen y se asegura el modo RGB.
+
+Se normaliza a rango [0, 1].
+
+Se permutan las dimensiones a formato [C, H, W].
+
+Se añade la dimensión de batch → [1, 3, H, W].
+
+Se aplica la normalización global norm y se envía a la device.
+
+2️⃣ Predicción del CHM
+Se ejecuta el modelo para obtener el mapa de altura predicho:
+
+python
+Copiar código
+with torch.no_grad():
+    pred = model(x)
+    pred = pred.cpu().relu()[0, 0].numpy()  # [H, W]
+
+chm_pred_up = pred
+Se desactiva el gradiente (torch.no_grad()).
+
+El modelo devuelve un tensor [1, 1, H, W].
+
+Se lleva a CPU, se aplica relu() (sin alturas negativas) y se extrae el mapa [H, W].
+
+3️⃣ (Opcional) Uso de un CHM real para evaluación
+Si el usuario también sube un archivo de CHM real:
+
+python
+Copiar código
+chm_img = Image.open(chm_file)
+chm_arr = np.array(chm_img).astype("float32")
+
+if chm_arr.ndim == 3:
+    chm_arr = chm_arr[..., 0]
+
+if chm_arr.shape != chm_pred_up.shape:
+    raise ValueError(
+        f"Dimensiones distintas entre predicción {chm_pred_up.shape} "
+        f"y CHM real {chm_arr.shape}. Deben coincidir."
+    )
+Se carga el raster de CHM.
+
+Si viene con 3 canales, se toma solo uno.
+
+Se valida que el tamaño del CHM real coincida con el de la predicción; si no, se lanza un error.
+
+Solo cuando las dimensiones coinciden se calculan las métricas:
+
+python
+Copiar código
+metrics = compute_all_metrics(chm_pred_up, chm_arr)
+👀 6.2.3. Qué muestra la app en este modo
+La interfaz visualiza:
+
+✅ Imagen RGB subida por el usuario.
+
+✅ CHM predicho por el modelo (convertido a mapa de color).
+
+✅ CHM real, si fue proporcionado y tiene el mismo tamaño.
+
+✅ Una tabla de métricas (MAE, RMSE, R², Bias, etc.) cuando se proporciona un CHM real válido.
+
+De esta manera, el usuario puede:
+
+Probar el modelo con sus propias imágenes.
+
+Comparar la predicción del modelo contra un CHM real (si lo tiene).
+
+Evaluar cuantitativamente el desempeño mediante las métricas mostradas en la app
 
 
 
