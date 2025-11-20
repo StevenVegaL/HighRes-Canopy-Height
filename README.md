@@ -164,32 +164,6 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 
 ---
 
-## 🖥️ Interfaz de Streamlit (implementación del proyecto)
-
-La aplicación de este repo incluye:
-
-- **Modo NEON interno**
-  - Selección de tiles del dataset NEON.
-  - Visualización de:
-    - Imagen aérea.
-    - CHM predicho por el modelo.
-    - CHM real (ALS).
-  - Cálculo de métricas:
-    - MAE, RMSE, R² a nivel píxel y por bloques.
-    - Sesgo (Bias).
-- **Modo “censo estructural”**
-  - A partir del CHM predicho:
-    - Altura promedio del dosel.
-    - Altura P95.
-    - % de área con árboles (ej. h > 1 m).
-    - Distribución de alturas (histograma).
-  - Todo presentado en paneles tipo dashboard.
-
-
-
-
-
-
 
 
 ---
@@ -200,7 +174,7 @@ La aplicación de este repo incluye:
 Para que la aplicación pueda realizar **inferencia real**, es indispensable descargar los **pesos preentrenados** del modelo original de Meta AI:  
 **High-Resolution Canopy Height Maps**.
 
----
+
 
 #### 3.1. ¿De dónde descargar los pesos?
 
@@ -210,11 +184,10 @@ Para que la aplicación pueda realizar **inferencia real**, es indispensable des
 
 - ✅ **Checkpoint del modelo CHM**, por ejemplo:  
   `compressed_SSLhuge_aerial.pth`
+
 - ✅ **Pesos de la red de normalización RNet**, usados cuando `normtype = 2`.  
   El nombre del archivo debe coincidir con lo que espera la función  
   `load_rnet_normalizer()` en `model/ssl_model.py`.
-
----
 
 
 #### 3.2. Dónde ubicar los archivos descargados
@@ -232,7 +205,7 @@ Instalación • Despliegue • Uso
 
 Este proyecto está preparado para ejecutarse fácilmente usando **Docker**, sin necesidad de instalar manualmente todas las dependencias en tu máquina local.
 
----
+
 
 ### 📁 4.1. Clonar el repositorio
 
@@ -240,8 +213,10 @@ Este proyecto está preparado para ejecutarse fácilmente usando **Docker**, sin
 git clone <URL_DE_TU_REPOSITORIO>
 cd HighResCanopyHeightApp
 ```
+
 ⚠️ Importante:
 Antes de continuar, asegúrate de que la carpeta saved_checkpoints/ contiene los pesos indicados en la sección anterior (modelo CHM y RNet).
+
 
 🛠️ 4.2. Construir la imagen Docker
 Desde la raíz del proyecto, ejecuta:
@@ -252,11 +227,15 @@ docker build -t chm-demo .
 
 ```
 
+
+
 🔎 ¿Qué hace este comando?
 
 Elemento	Descripción
 -t chm-demo	Asigna el nombre chm-demo a la imagen Docker
 .	Usa el Dockerfile ubicado en el directorio actual
+
+
 
 📦 El Dockerfile se encarga de:
 
@@ -269,12 +248,15 @@ Asegurar el acceso a saved_checkpoints/ para cargar los pesos del modelo.
 Definir el comando de arranque de Streamlit como punto de entrada.
 
 
+
+
 ▶️ 4.3. Ejecutar el contenedor
 Una vez construida la imagen, puedes levantar el contenedor con:
 
 ```bash
 docker run -p 8501:8501 chm-demo
 ```
+
 
 🔍 Detalle de parámetros:
 
@@ -287,6 +269,7 @@ chm-demo	Nombre de la imagen creada en el paso anterior
 ```bash
 docker run -p 8502:8501 chm-demo
 ```
+
 
 
 
