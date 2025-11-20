@@ -60,6 +60,11 @@ Aquí se resume la arquitectura completa en 3 niveles: **encoder SSL**, **decode
 
 3. **Teacher–Student (DINOv2)**
    - Dos ViT con la misma arquitectura:
+
+<p align="center">
+  <img src="app/assets/vit2.png" width="100%" />
+</p>
+
      - **Student**: recibe vistas globales + locales (con masking). Se actualiza por gradiente.
      - **Teacher**: recibe vistas globales, se actualiza por EMA (promedio móvil de los pesos del student).
    - Las salidas del student intentan **imitar las del teacher** → pérdida de auto-supervisión.
@@ -70,7 +75,7 @@ Aquí se resume la arquitectura completa en 3 niveles: **encoder SSL**, **decode
 ### 2. Decoder DPT para CHM de alta resolución (ALS)
 
 <p align="center">
-  <img src="app/assets/dpt.png" width="80%" />
+  <img src="app/assets/dpt.png" width="100%" />
 </p>
 
 A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
@@ -78,7 +83,7 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 1. **Reassemble blocks**
 
 <p align="center">
-  <img src="app/assets/rem.png" width="80%" />
+  <img src="app/assets/rem.png" width="60%" />
 </p>
 
    - Toman las features del ViT en distintas capas y las transforman en mapas 2D a distintas escalas.
@@ -90,7 +95,7 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 2. **Fusion blocks**
 
 <p align="center">
-  <img src="app/assets/fus.png" width="80%" />
+  <img src="app/assets/fus.png" width="60%" />
 </p>
 
    - Combinan información **global** (mapas más pequeños) con **detalle fino** (mapas de mayor resolución).
@@ -103,7 +108,7 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 3. **Head (salida por bins)**
 
 <p align="center">
-  <img src="app/assets/head.png" width="80%" />
+  <img src="app/assets/head.png" width="60%" />
 </p>
 
    - Toma el último mapa de features (64×64) y:
@@ -125,7 +130,15 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 
 ### 3. Modelo GEDI global y fusión ALS + GEDI
 
+<p align="center">
+  <img src="app/assets/gedi.png" width="60%" />
+</p>
+
 1. **Modelo GEDI (CNN + metadata)**
+<p align="center">
+  <img src="app/assets/cnn.png" width="100%" />
+</p>
+
    - Entrada:
      - Parche RGB de 128×128.
      - Metadatos: latitud, longitud, elevación solar, ángulo off-nadir, pendiente del terreno.
@@ -135,9 +148,14 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
    - Salida:
      - Un escalar: altura **RH95** (GEDI) en ese footprint.
    - Pérdida:
+   
      - **L1 Loss** entre altura predicha y altura medida por GEDI.
 
 2. **Cálculo de factor de reescalamiento**
+
+<p align="center">
+  <img src="app/assets/combi.png" width="100%" />
+</p>
    - Se cruzan las predicciones del modelo ALS y del modelo GEDI en zonas con datos comunes.
    - Se calcula un **factor de escala espacialmente suave** que corrige el CHM ALS.
 
