@@ -2,8 +2,9 @@
 
 
 <p align="center">
-  <img src="assets/banner_chm.png" width="90%" />
+  <img src="app/assets/banner_chm.png" width="90%" />
 </p>
+
 
 
 
