@@ -1,5 +1,3 @@
-# 🌳 high-resolution forest canopy mapping
-
 
 <p align="center">
   <img src="app/assets/banner_chm.png" width="100%" />
@@ -45,6 +43,11 @@ Aquí se resume la arquitectura completa en 3 niveles: **encoder SSL**, **decode
 
 ### 1. Encoder SSL: ViT Huge con DINOv2
 
+<p align="center">
+  <img src="app/assets/vit.png" width="100%" />
+</p>
+
+
 1. **Entrada**
    - Imágenes satelitales globales de 256×256 píxeles.
    - Se genera un **multi-crop**:
@@ -66,9 +69,18 @@ Aquí se resume la arquitectura completa en 3 niveles: **encoder SSL**, **decode
 
 ### 2. Decoder DPT para CHM de alta resolución (ALS)
 
+<p align="center">
+  <img src="app/assets/dpt.png" width="80%" />
+</p>
+
 A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
 
 1. **Reassemble blocks**
+
+<p align="center">
+  <img src="app/assets/rem.png" width="80%" />
+</p>
+
    - Toman las features del ViT en distintas capas y las transforman en mapas 2D a distintas escalas.
    - Cada bloque:
      - **Read**: reordena los tokens a su posición espacial → mapa 2D.
@@ -76,6 +88,11 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
      - **Resampleₛ**: ajusta el tamaño del mapa para trabajar en escalas 1/32, 1/16, 1/8 y 1/4.
 
 2. **Fusion blocks**
+
+<p align="center">
+  <img src="app/assets/fus.png" width="80%" />
+</p>
+
    - Combinan información **global** (mapas más pequeños) con **detalle fino** (mapas de mayor resolución).
    - Cada bloque:
      - Aplica una **Residual Conv Unit** para limpiar/refinar.
@@ -84,6 +101,11 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
      - Otro **Project (Conv 1×1)** adapta el número de canales para el siguiente nivel.
 
 3. **Head (salida por bins)**
+
+<p align="center">
+  <img src="app/assets/head.png" width="80%" />
+</p>
+
    - Toma el último mapa de features (64×64) y:
      - Aplica un **upsample** para volver a 256×256.
      - Conv 1×1 → genera **256 bins de altura por píxel**.
@@ -92,6 +114,8 @@ A partir de aquí, el encoder queda **congelado** y sólo se entrena el decoder.
    - Se obtiene un **CHM predicho 256×256**, alineado con el tile de entrada.
 
 4. **Función de pérdida: Sigloss**
+
+
    - Variante de la pérdida de profundidad de Eigen et al.:
      - Trabaja en espacio logarítmico.
      - Penaliza errores absolutos y errores globales de escala.
