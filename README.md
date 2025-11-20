@@ -1,8 +1,8 @@
-# 🌳 High-Resolution Canopy Height  
+# 🌳 high-resolution forest canopy mapping
 
 
 <p align="center">
-  <img src="app/assets/banner_chm.png" width="90%" />
+  <img src="app/assets/banner_chm.png" width="100%" />
 </p>
 
 
