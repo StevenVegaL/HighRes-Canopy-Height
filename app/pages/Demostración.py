@@ -660,7 +660,7 @@ if mode == "Modo NEON (dataset)":
             active_cls = "thumb-card thumb-active" if active else "thumb-card"
             with col:
                 st.markdown(f'<div class="{active_cls}">', unsafe_allow_html=True)
-                st.image(src_img, use_container_width=True)
+                st.image(src_img)
                 st.markdown(f'<div class="thumb-label">Tile #{idx_thumb}</div></div>', unsafe_allow_html=True)
 
         # Botones de navegación (mueven el índice NEON)
@@ -1092,7 +1092,7 @@ debe tener el <strong>mismo tamaño</strong> que la imagen RGB.
 
                     with c1:
                         st.markdown('<div class="result-card"><div class="result-title">Imagen RGB usada por el modelo</div>', unsafe_allow_html=True)
-                        st.image(img_rgb_up, use_container_width=True)
+                        st.image(img_rgb_up)
                         if resized_msg is not None:
                             st.caption(resized_msg)
                         else:
@@ -1115,7 +1115,7 @@ debe tener el <strong>mismo tamaño</strong> que la imagen RGB.
 
                     with c2:
                         st.markdown('<div class="result-card"><div class="result-title">CHM predicho (m)</div>', unsafe_allow_html=True)
-                        st.image(chm_pred_rgb_up, use_container_width=True)
+                        st.image(chm_pred_rgb_up)
                         st.markdown('</div>', unsafe_allow_html=True)
 
                     with c3:
@@ -1124,7 +1124,7 @@ debe tener el <strong>mismo tamaño</strong> que la imagen RGB.
                             chm_gt_vis_up = np.clip(chm_gt_vis_up, 0.0, 1.0)
                             chm_gt_rgb_up = chm_to_rgb(chm_gt_vis_up, cmap_name="viridis")
                             st.markdown('<div class="result-card"><div class="result-title">CHM real (m)</div>', unsafe_allow_html=True)
-                            st.image(chm_gt_rgb_up, use_container_width=True)
+                            st.image(chm_gt_rgb_up)
                             st.markdown('</div>', unsafe_allow_html=True)
                         else:
                             st.markdown('<div class="result-card"><div class="result-title">CHM real (no disponible)</div>', unsafe_allow_html=True)
